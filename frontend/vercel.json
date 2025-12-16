@@ -1,7 +1,4 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "build",
-  "env": {
-    "REACT_APP_API_URL": "https://pbl6-cb4u.onrender.com"
-  }
+  "outputDirectory": "build"
 }
