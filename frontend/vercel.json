@@ -2,12 +2,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "env": {
-    "REACT_APP_API_URL": "@pbl6_api_url"
-  },
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://pbl6-40m0.onrender.com/api/:path*"
-    }
-  ]
+    "REACT_APP_API_URL": "https://pbl6-cb4u.onrender.com"
+  }
 }
