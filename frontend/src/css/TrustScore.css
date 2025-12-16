@@ -1,0 +1,139 @@
+
+.trust-meter-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: 3rem;
+  padding: 1rem 0;
+}
+
+.meter-circle {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  flex-shrink: 0;
+}
+
+.meter-svg {
+  width: 170px;
+  height: 170px;
+  transform: rotate(-90deg);
+}
+
+.meter-progress {
+  transition: stroke-dashoffset 1s ease-in-out, stroke 0.3s ease;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.3));
+}
+
+.meter-score {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.meter-unit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.meter-details {
+  flex: 1;
+  min-width: 300px;
+}
+
+.meter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+
+.trust-level-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.trust-description {
+  font-size: 1rem;
+  color: #334155;
+  margin-bottom: 1.2rem;
+  line-height: 1.5;
+}
+
+.meter-bar-bg {
+  width: 100%;
+  height: 14px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.meter-bar {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.8s ease, background 0.6s ease;
+}
+
+.badge {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.badge-green {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.badge-yellow {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.badge-red {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.trust-meter-section {
+  background: transparent;
+  padding: 1rem 0;
+  border: none;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .trust-meter-flex {
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  .meter-details {
+    text-align: center;
+  }
+
+  .meter-bar-bg {
+    width: 90%;
+    margin: 0 auto;
+  }
+
+  .trust-level-title {
+    font-size: 1.2rem;
+  }
+}

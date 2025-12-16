@@ -1,0 +1,449 @@
+:root {
+  --primary: #1e3a8a;
+  --primary-dark: #1e40af;
+  --accent: #2563eb;
+  --success: #10b981;
+  --success-dark: #059669;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --bg-light: #f9fafb;
+  --bg-lighter: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg-light);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============== PATIENT DASHBOARD ============== */
+.patient-dashboard {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 2rem;
+}
+
+/* ============== HEADER ============== */
+.patient-header {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow-sm);
+  border-left: 5px solid var(--accent);
+  position: relative;
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.back-button {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  background: var(--bg-lighter);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.back-icon {
+  font-size: 1rem;
+}
+
+.welcome-text {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.025em;
+}
+
+.subtext {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ============== LOGS SECTION ============== */
+.logs-section {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 0.5s ease 0.1s backwards;
+}
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0 0 1.5rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-title::before {
+  content: "📋";
+  font-size: 1.75rem;
+}
+
+/* ============== ACCESS LOG CARDS ============== */
+.access-log-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.access-log-card {
+  background: linear-gradient(135deg, #f8fafc 0%, white 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  animation: slideUp 0.4s ease backwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.access-log-card:nth-child(1) { animation-delay: 0.1s; }
+.access-log-card:nth-child(2) { animation-delay: 0.15s; }
+.access-log-card:nth-child(3) { animation-delay: 0.2s; }
+.access-log-card:nth-child(4) { animation-delay: 0.25s; }
+.access-log-card:nth-child(5) { animation-delay: 0.3s; }
+
+.access-log-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+}
+
+.log-header {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.log-icon {
+  font-size: 1.5rem;
+  color: white;
+  flex-shrink: 0;
+}
+
+.log-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+  flex: 1;
+}
+
+.log-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.log-body p {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.log-detail-icon {
+  font-size: 1rem;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.log-body strong {
+  color: var(--text);
+  font-weight: 600;
+  min-width: 100px;
+  display: inline-block;
+}
+
+/* ============== STATUS TAGS ============== */
+.status-tag {
+  display: inline-block;
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.status-tag.granted {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.status-tag.denied {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.status-tag.neutral {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+/* ============== NO LOGS STATE ============== */
+.no-logs {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--text-muted);
+}
+
+.no-logs::before {
+  content: "📭";
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.no-logs p {
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ============== LOADING & ERROR STATES ============== */
+.loading-spinner,
+.error-message {
+  text-align: center;
+  padding: 3rem 2rem;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.loading-spinner {
+  color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.loading-spinner::before {
+  content: "⏳";
+  font-size: 3rem;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.error-message {
+  color: var(--danger);
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+}
+
+.error-message::before {
+  content: "⚠️";
+  font-size: 2rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* ============== RESPONSIVE ============== */
+@media (max-width: 1024px) {
+  .access-log-container {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .patient-header {
+    padding: 1.75rem;
+  }
+
+  .back-button {
+    position: static;
+    margin-bottom: 1rem;
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 768px) {
+  .patient-dashboard {
+    padding: 1rem;
+  }
+
+  .patient-header {
+    padding: 1.5rem;
+  }
+
+  .welcome-text {
+    font-size: 1.5rem;
+  }
+
+  .subtext {
+    font-size: 0.9rem;
+  }
+
+  .logs-section {
+    padding: 1.5rem;
+  }
+
+  .section-title {
+    font-size: 1.25rem;
+  }
+
+  .access-log-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .log-header {
+    padding: 1rem 1.25rem;
+  }
+
+  .log-body {
+    padding: 1.25rem;
+    gap: 0.875rem;
+  }
+
+  .log-body strong {
+    min-width: 80px;
+  }
+
+  .back-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .patient-dashboard {
+    padding: 0.75rem;
+  }
+
+  .patient-header {
+    padding: 1.25rem;
+    border-radius: 10px;
+  }
+
+  .welcome-text {
+    font-size: 1.375rem;
+  }
+
+  .logs-section {
+    padding: 1.25rem;
+    border-radius: 10px;
+  }
+
+  .log-body p {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .log-body strong {
+    min-width: auto;
+  }
+
+  .status-tag {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* ============== PRINT STYLES ============== */
+@media print {
+  .back-button {
+    display: none !important;
+  }
+
+  .patient-dashboard {
+    background: white;
+    padding: 0;
+  }
+
+  .access-log-card {
+    page-break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+
+  .log-header {
+    background: #f1f5f9 !important;
+    color: var(--text) !important;
+  }
+
+  .log-title,
+  .log-icon {
+    color: var(--text) !important;
+  }
+}

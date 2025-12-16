@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: pbl6-backend
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app.py"
+    envVars:
+      - key: FIREBASE_CONFIG
+        scope: run
+        value: ${FIREBASE_CONFIG}
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHONUNBUFFERED
+        value: "true"
+    healthCheckPath: /health
+    headers:
+      - path: "*"
+        headers:
+          - key: "Access-Control-Allow-Origin"
+            value: "*"
