@@ -1,8 +1,13 @@
 # app.py
+"""
+MedTrust AI - Secure EHR Backend
+Optimized for Render deployment with REST-based Firestore (no gRPC)
+"""
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import firebase_admin
-from firebase_admin import credentials, auth, firestore
+from firebase_admin import credentials, auth
+from google.cloud.firestore_v1 import client as firestore_client  # ✅ REST transport
 from datetime import datetime
 import ipaddress
 import socket
@@ -11,7 +16,7 @@ import random, string, time
 import io
 import os
 import traceback
-import joblib  # ✅ ADD: Missing import for model loading
+import joblib
 
 from utils import (
     get_client_ip_from_request,
@@ -32,52 +37,87 @@ FONT_CANDIDATES = [
     "C:\\Windows\\Fonts\\DejaVuSans.ttf"
 ]
 
-# ---------- Init Firebase ----------
+# ---------- Init Firebase + Firestore (REST transport, no gRPC) ----------
 firebase_admin_initialized = False
 db = None
+_firebase_init_lock = False  # Prevent re-initialization in workers
 
-# Check if Firebase is already initialized (prevents duplicate init in workers)
-if not firebase_admin._apps:
-    firebase_config_json = os.getenv("FIREBASE_CONFIG")
-    if firebase_config_json:
-        try:
-            print("📦 Loading Firebase config from environment variable...")
-            cred_dict = json.loads(firebase_config_json)
-            cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(cred)
-            db = firestore.client()
-            firebase_admin_initialized = True
-            print("✅ Firebase connected successfully (from env var)!")
-        except Exception as e:
-            print("❌ Firebase initialization error (env var):", e)
-            firebase_admin_initialized = False
-            db = None
-    # Fall back to local file if env var not set
-    elif os.path.exists(FIREBASE_CONFIG_PATH):
-        try:
-            print("📦 Loading Firebase config from local file...")
-            cred = credentials.Certificate(FIREBASE_CONFIG_PATH)
-            firebase_admin.initialize_app(cred)
-            db = firestore.client()
-            firebase_admin_initialized = True
-            print("✅ Firebase connected successfully!")
-        except Exception as e:
-            print("❌ Firebase initialization error:", e)
-            db = None
-            firebase_admin_initialized = False
-    else:
-        print("⚠️ Firebase config not found.")
-        print("   For local development: Create firebase_config.json in backend/ folder")
-        print("   For production: Set FIREBASE_CONFIG environment variable with JSON content")
-        firebase_admin_initialized = False
-        db = None
-else:
-    # Firebase already initialized in another process/worker
-    firebase_admin_initialized = True
+
+def initialize_firebase():
+    """
+    ✅ Initialize Firebase Admin SDK with Firestore REST transport.
+    
+    - No gRPC dependency (uses REST/HTTP)
+    - Safe for multi-worker environments (Gunicorn)
+    - Single initialization check prevents duplicate apps
+    - Explicit REST transport for Firestore
+    """
+    global firebase_admin_initialized, db, _firebase_init_lock
+    
+    if _firebase_init_lock or firebase_admin_initialized:
+        return firebase_admin_initialized
+    
+    _firebase_init_lock = True
+    
     try:
-        db = firestore.client()
-    except:
-        db = None
+        # Check if Firebase already initialized in this process
+        if not firebase_admin._apps:
+            firebase_config_json = os.getenv("FIREBASE_CONFIG")
+            
+            if firebase_config_json:
+                print("📦 Loading Firebase config from environment variable...")
+                try:
+                    cred_dict = json.loads(firebase_config_json)
+                    cred = credentials.Certificate(cred_dict)
+                    firebase_admin.initialize_app(cred)
+                    print("✅ Firebase Admin SDK initialized (from env)")
+                except json.JSONDecodeError as e:
+                    print(f"❌ Invalid FIREBASE_CONFIG JSON: {e}")
+                    _firebase_init_lock = False
+                    return False
+                except Exception as e:
+                    print(f"❌ Firebase initialization error (env): {e}")
+                    _firebase_init_lock = False
+                    return False
+            
+            elif os.path.exists(FIREBASE_CONFIG_PATH):
+                print("📦 Loading Firebase config from local file...")
+                try:
+                    cred = credentials.Certificate(FIREBASE_CONFIG_PATH)
+                    firebase_admin.initialize_app(cred)
+                    print("✅ Firebase Admin SDK initialized (local file)")
+                except Exception as e:
+                    print(f"❌ Firebase initialization error (local): {e}")
+                    _firebase_init_lock = False
+                    return False
+            
+            else:
+                print("⚠️ Firebase config not found.")
+                print("   → Local: Create firebase_config.json in backend/ folder")
+                print("   → Production: Set FIREBASE_CONFIG env var with JSON content")
+                _firebase_init_lock = False
+                return False
+        
+        # ✅ Initialize Firestore with REST transport (no gRPC)
+        try:
+            db = firestore_client.Client(transport="rest")
+            print("✅ Firestore connected via REST transport (no gRPC)")
+            firebase_admin_initialized = True
+            return True
+        except Exception as e:
+            print(f"❌ Firestore initialization error: {e}")
+            _firebase_init_lock = False
+            return False
+    
+    except Exception as e:
+        print(f"❌ Unexpected error in initialize_firebase: {e}")
+        traceback.print_exc()
+        _firebase_init_lock = False
+        return False
+
+
+# Initialize on first import
+initialize_firebase()
 
 app = Flask(__name__)
 # ✅ CORS configuration - allow frontend domains
