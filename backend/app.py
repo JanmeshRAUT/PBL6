@@ -133,8 +133,6 @@ CORS(app, resources={
         "allow_headers": ["Content-Type", "Authorization"]
     }
 }, supports_credentials=True)
-# Also apply CORS to all routes
-CORS(app, origins="*")
 
 # ---------- HybridAccessModel Class Definition ----------
 # ⚠️ IMPORTANT: This must be defined BEFORE loading the pickle file
