@@ -6,8 +6,7 @@ Optimized for Render deployment with REST-based Firestore (no gRPC)
 from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import firebase_admin
-from firebase_admin import credentials, auth
-from google.cloud.firestore_v1 import client as firestore_client  # ✅ REST transport
+from firebase_admin import credentials, auth, firestore
 from datetime import datetime
 import ipaddress
 import socket
@@ -47,10 +46,9 @@ def initialize_firebase():
     """
     ✅ Initialize Firebase Admin SDK with Firestore REST transport.
     
-    - No gRPC dependency (uses REST/HTTP)
+    - No gRPC dependency (uses REST/HTTP via google-cloud-firestore)
     - Safe for multi-worker environments (Gunicorn)
     - Single initialization check prevents duplicate apps
-    - Explicit REST transport for Firestore
     """
     global firebase_admin_initialized, db, _firebase_init_lock
     
@@ -98,14 +96,15 @@ def initialize_firebase():
                 _firebase_init_lock = False
                 return False
         
-        # ✅ Initialize Firestore with REST transport (no gRPC)
+        # ✅ Initialize Firestore (REST transport is default in google-cloud-firestore)
         try:
-            db = firestore_client.Client(transport="rest")
-            print("✅ Firestore connected via REST transport (no gRPC)")
+            db = firestore.client()
+            print("✅ Firestore connected (REST transport, no gRPC)")
             firebase_admin_initialized = True
             return True
         except Exception as e:
             print(f"❌ Firestore initialization error: {e}")
+            traceback.print_exc()
             _firebase_init_lock = False
             return False
     
