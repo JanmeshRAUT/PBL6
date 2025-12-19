@@ -21,7 +21,7 @@ TRUST_THRESHOLD = 40
 
 # Email placeholders (REPLACE before running)
 EMAIL_SENDER = "janmeshraut.mitadt@gmail.com"
-EMAIL_PASSWORD = "ejnf urgs ipmc kgdg"  # <-- replace
+EMAIL_PASSWORD = "njvx xusb hbzy naaf"  # <-- replace
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 

@@ -4,11 +4,14 @@ import { API_URL } from "../api";
 import "../css/Login.css";
 import "../css/Notifications.css"; // <-- Add this if not present
 import { FaTimes } from "react-icons/fa";
+import { auth } from "./firebaseConfig";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 const Login = ({ onLogin }) => {
 	const [step, setStep] = useState(1);
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
 	const [role, setRole] = useState("");
 	const [otp, setOtp] = useState("");
 	const [sessionId, setSessionId] = useState("");
@@ -19,7 +22,8 @@ const Login = ({ onLogin }) => {
 
 	// ✅ Check if email is admin
 	const isAdminEmail = (testEmail) => {
-		return testEmail.toLowerCase() === "admin@ehr.com";
+		const adminEmails = ["admin@ehr.com", "admin@medtrust.com"];
+		return adminEmails.includes(testEmail.toLowerCase());
 	};
 
 	useEffect(() => {
@@ -41,20 +45,43 @@ const Login = ({ onLogin }) => {
 
 		// ✅ Check if admin login
 		if (isAdminEmail(email)) {
-			// ✅ Admin login - direct bypass for demo (in production, use Firebase Auth)
+			if (!password) {
+				return setMessage("❌ Enter password!");
+			}
 			try {
 				setLoading(true);
 				setMessage("Verifying admin credentials...");
 
-				// ✅ Simulate admin auth verification
-				// In production, use Firebase signInWithEmailAndPassword here
-				setTimeout(() => {
+				// ✅ Authenticate with Firebase using email & password
+				const userCredential = await signInWithEmailAndPassword(auth, email, password);
+				const idToken = await userCredential.user.getIdToken();
+
+				// ✅ Verify with backend
+				const res = await axios.post(
+					`${API_URL}/admin/login`,
+					{},
+					{
+						headers: { Authorization: `Bearer ${idToken}` },
+					}
+				);
+
+				if (res.data.success) {
 					setMessage("✅ Admin authenticated!");
 					onLogin("admin", "Admin");
-				}, 1000);
+				} else {
+					setMessage("❌ " + (res.data.error || "Admin verification failed"));
+				}
 			} catch (error) {
-				setMessage("❌ Admin authentication failed");
 				console.error("Admin auth error:", error);
+				if (error.code === "auth/user-not-found") {
+					setMessage("❌ Admin email not found in Firebase");
+				} else if (error.code === "auth/wrong-password") {
+					setMessage("❌ Incorrect password");
+				} else if (error.response?.data?.error) {
+					setMessage("❌ " + error.response.data.error);
+				} else {
+					setMessage("❌ Admin authentication failed");
+				}
 			} finally {
 				setLoading(false);
 			}
@@ -144,6 +171,7 @@ const Login = ({ onLogin }) => {
 	const goBack = () => {
 		setStep(1);
 		setOtp("");
+		setPassword("");
 		setSessionId("");
 		setTimer(180);
 		setMessage("");
@@ -229,6 +257,21 @@ const Login = ({ onLogin }) => {
 								onChange={(e) => setEmail(e.target.value)}
 								aria-label="Email"
 							/>
+
+							{/* ✅ Show password field for admin */}
+							{isAdminEmail(email) && (
+								<>
+									<label className="label">Password</label>
+									<input
+										className="input"
+										type="password"
+										placeholder="Enter admin password"
+										value={password}
+										onChange={(e) => setPassword(e.target.value)}
+										aria-label="Password"
+									/>
+								</>
+							)}
 
 							{/* ✅ Show role dropdown only for non-admin */}
 							{!isAdminEmail(email) && (
