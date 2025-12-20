@@ -1,0 +1,135 @@
+/* ============== MEDICAL REPORT STYLES ============== */
+.medical-report-container {
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  font-family: "Times New Roman", Times, serif;
+  color: #334155;
+  /* Full width adaptation */
+  max-width: 100%;
+  margin: 2rem 0;
+  width: 100%;
+}
+
+.report-header {
+  border-bottom: 2px solid #0f766e;
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap; /* Responsive wrap */
+  gap: 1rem;
+}
+
+.report-header-title {
+  font-size: 1.8rem;
+  color: #0f766e;
+  margin: 0;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.report-subtitle {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.report-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Patient Demographics Grid */
+.report-demographics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.demographic-item strong {
+  display: block;
+  color: #64748b;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.demographic-item span {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* Section Headers */
+.report-section-title {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #0f766e;
+  border-bottom: 1px solid #cbd5e1;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  margin-top: 0;
+}
+
+/* Diagnosis Box */
+.diagnosis-box {
+  padding: 1rem;
+  background-color: #f0fdfa;
+  border-left: 4px solid #0f766e;
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Text Content */
+.report-text {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0 0 1.5rem 0;
+  white-space: pre-wrap;
+}
+
+/* Footer */
+.report-footer {
+  font-family: "Segoe UI", sans-serif;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1rem;
+  margin-top: 2rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .medical-report-container {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
+
+  .report-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .report-header-title {
+    font-size: 1.4rem;
+  }
+
+  .report-actions {
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  .report-actions button {
+    flex: 1;
+  }
+}

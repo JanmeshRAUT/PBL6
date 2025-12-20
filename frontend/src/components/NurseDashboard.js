@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API_URL } from "../api";
 import { useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 import TrustScoreMeter from "./TrustScoreMeter";
 import {
   FaUserNurse,
@@ -21,6 +22,21 @@ import "../css/Notifications.css"; // ✅ ADD THIS
 const NurseDashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
 
+  // ✅ Helper: Get Firebase ID token
+  const getFirebaseToken = useCallback(async () => {
+    try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        return await currentUser.getIdToken();
+      }
+      return null;
+    } catch (error) {
+      console.error("Error getting Firebase token:", error);
+      return null;
+    }
+  }, []);
+
   const [activeTab, setActiveTab] = useState("dashboard"); // ✅ Tabs
   const [trustScore, setTrustScore] = useState(0);
   const [ipAddress, setIpAddress] = useState("");
@@ -31,6 +47,8 @@ const NurseDashboard = ({ user, onLogout }) => {
   const [logs, setLogs] = useState([]);
   const [lastLogin, setLastLogin] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [accessExpiryTime, setAccessExpiryTime] = useState(null);
 
   // Helper to remove leading emoji from backend messages
   const cleanToastMessage = (msg) => {
@@ -44,9 +62,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchTrustScore = useCallback(async () => {
     if (!user?.name) return;
     try {
-      const res = await axios.get(
-        `http://localhost:5000/trust_score/${user.name}`
-      );
+      const res = await axios.get(`${API_URL}/trust_score/${user.name}`);
       setTrustScore(res.data.trust_score || 0);
     } catch (err) {
       console.error("Error fetching trust score:", err);
@@ -68,21 +84,24 @@ const NurseDashboard = ({ user, onLogout }) => {
   // ✅ Fetch Patients (from all_patients endpoint)
   const fetchPatients = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_URL}/all_patients`);
+      const token = await getFirebaseToken();
+      const res = await axios.get(`${API_URL}/all_patients`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (res.data.success) setPatients(res.data.patients || []);
     } catch (err) {
       console.error("Error fetching patients:", err);
       setPatients([]);
     }
-  }, []);
+  }, [getFirebaseToken]);
 
   // ✅ Fetch Nurse Access Logs (from NurseAccessLog)
   const fetchAccessLogs = useCallback(async () => {
     if (!user?.name) return;
     try {
-      const res = await axios.get(
-        `http://localhost:5000/nurse_access_logs/${user.name}`
-      );
+      const res = await axios.get(`${API_URL}/nurse_access_logs/${user.name}`);
       if (res.data.success) setLogs(res.data.logs || []);
     } catch (err) {
       console.error("Error fetching access logs:", err);
@@ -166,30 +185,66 @@ const NurseDashboard = ({ user, onLogout }) => {
   // ✅ Handle Temporary Access Request (Time-based, no justification)
   const handleAccessRequest = async () => {
     if (!selectedPatient) {
-      setToast({ show: true, message: "Please select a patient first!", type: "warning" });
+      setToast({
+        show: true,
+        message: "Please select a patient first!",
+        type: "warning",
+      });
       setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
       return;
     }
 
     if (!isInsideNetwork) {
-      setToast({ show: true, message: "Temporary Access can only be requested inside the hospital network!", type: "error" });
+      setToast({
+        show: true,
+        message:
+          "Temporary Access can only be requested inside the hospital network!",
+        type: "error",
+      });
       setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
       return;
     }
 
     try {
-      const res = await axios.post(`${API_URL}/request_temp_access`, {
-        name: user.name,
-        role: user.role,
-        patient_name: selectedPatient,
-      });
+      const token = await getFirebaseToken();
+      const res = await axios.post(
+        `${API_URL}/request_temp_access`,
+        {
+          name: user.name,
+          role: user.role,
+          patient_name: selectedPatient,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       let type = res.data.success ? "success" : "error";
-      setToast({ show: true, message: cleanToastMessage(res.data.message), type });
+      setToast({
+        show: true,
+        message: cleanToastMessage(res.data.message),
+        type,
+      });
+
+      // ✅ Update patient data with the sensitive info returned
+      if (res.data.success && res.data.patient_data) {
+        setSelectedPatientData(res.data.patient_data);
+        setAccessGranted(true);
+        // Set expiry time to 30 minutes from now
+        const expiryTime = new Date(Date.now() + 30 * 60 * 1000);
+        setAccessExpiryTime(expiryTime);
+      }
+
       setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
       fetchAccessLogs();
     } catch (error) {
-      setToast({ show: true, message: "Failed to request temporary access.", type: "error" });
+      setToast({
+        show: true,
+        message: "Failed to request temporary access.",
+        type: "error",
+      });
       setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
     }
   };
@@ -204,6 +259,8 @@ const NurseDashboard = ({ user, onLogout }) => {
   // ✅ Handle patient selection and store details
   const handleSelectPatient = (patientName) => {
     setSelectedPatient(patientName);
+    setAccessGranted(false);
+    setAccessExpiryTime(null);
     const found = patients.find(
       (p) => (p.name || "").toLowerCase() === (patientName || "").toLowerCase()
     );
@@ -218,7 +275,10 @@ const NurseDashboard = ({ user, onLogout }) => {
           <div className="toast-content">
             <span>{toast.message}</span>
           </div>
-          <button className="toast-close" onClick={() => setToast({ ...toast, show: false })}>
+          <button
+            className="toast-close"
+            onClick={() => setToast({ ...toast, show: false })}
+          >
             <FaTimes />
           </button>
         </div>
@@ -318,11 +378,327 @@ const NurseDashboard = ({ user, onLogout }) => {
               </select>
 
               {selectedPatientData && (
-                <div className="patient-summary">
-                  <p><strong>Name:</strong> {selectedPatientData.name}</p>
-                  <p><strong>Email:</strong> {selectedPatientData.email || "N/A"}</p>
-                  <p><strong>Age:</strong> {selectedPatientData.age || "—"}</p>
-                  <p><strong>Gender:</strong> {selectedPatientData.gender || "—"}</p>
+                <div
+                  className="patient-summary"
+                  style={{
+                    background: "transparent",
+                    padding: "0",
+                    boxShadow: "none",
+                  }}
+                >
+                  {/* Medical Report Card */}
+                  <div
+                    style={{
+                      background: "#ffffff",
+                      borderRadius: "8px",
+                      boxShadow:
+                        "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+                      border: "1px solid #e2e8f0",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Header */}
+                    <div
+                      style={{
+                        background:
+                          "linear-gradient(to right, #1e40af, #3b82f6)",
+                        padding: "1.5rem",
+                        color: "white",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div>
+                          <h3
+                            style={{
+                              margin: 0,
+                              fontSize: "1.25rem",
+                              fontWeight: "bold",
+                            }}
+                          >
+                            HOSPITAL PATIENT REPORT
+                          </h3>
+                          <p
+                            style={{
+                              margin: "0.25rem 0 0 0",
+                              opacity: 0.9,
+                              fontSize: "0.875rem",
+                            }}
+                          >
+                            Confidential Medical Record
+                          </p>
+                        </div>
+                        <FaHospitalUser size={32} style={{ opacity: 0.8 }} />
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div style={{ padding: "2rem" }}>
+                      {/* Demographics Grid */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fit, minmax(200px, 1fr))",
+                          gap: "1.5rem",
+                          marginBottom: "2rem",
+                          borderBottom: "1px solid #e2e8f0",
+                          paddingBottom: "2rem",
+                        }}
+                      >
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              fontSize: "0.75rem",
+                              textTransform: "uppercase",
+                              color: "#64748b",
+                              fontWeight: "bold",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            Patient Name
+                          </label>
+                          <div
+                            style={{
+                              fontSize: "1.125rem",
+                              color: "#1e293b",
+                              fontWeight: "500",
+                              marginTop: "0.25rem",
+                            }}
+                          >
+                            {selectedPatientData.name}
+                          </div>
+                        </div>
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              fontSize: "0.75rem",
+                              textTransform: "uppercase",
+                              color: "#64748b",
+                              fontWeight: "bold",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            Email
+                          </label>
+                          <div
+                            style={{
+                              fontSize: "1rem",
+                              color: "#334155",
+                              marginTop: "0.25rem",
+                            }}
+                          >
+                            {selectedPatientData.email || "N/A"}
+                          </div>
+                        </div>
+                        <div>
+                          <label
+                            style={{
+                              display: "block",
+                              fontSize: "0.75rem",
+                              textTransform: "uppercase",
+                              color: "#64748b",
+                              fontWeight: "bold",
+                              letterSpacing: "0.05em",
+                            }}
+                          >
+                            Age / Gender
+                          </label>
+                          <div
+                            style={{
+                              fontSize: "1rem",
+                              color: "#334155",
+                              marginTop: "0.25rem",
+                            }}
+                          >
+                            {selectedPatientData.age || "—"} yrs /{" "}
+                            {selectedPatientData.gender || "—"}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Access Status & Medical Data */}
+                      {accessGranted ? (
+                        <div style={{ animation: "fadeIn 0.5s" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.75rem",
+                              background: "#f0fdf4",
+                              border: "1px solid #86efac",
+                              borderRadius: "6px",
+                              padding: "1rem",
+                              marginBottom: "2rem",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                background: "#22c55e",
+                                borderRadius: "50%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "white",
+                              }}
+                            >
+                              ✓
+                            </div>
+                            <div>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  color: "#15803d",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                Access Authorized
+                              </p>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: "0.875rem",
+                                  color: "#166534",
+                                }}
+                              >
+                                Session expires at{" "}
+                                {accessExpiryTime?.toLocaleTimeString()}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "grid", gap: "1.5rem" }}>
+                            <div
+                              style={{
+                                background: "#f8fafc",
+                                padding: "1.5rem",
+                                borderRadius: "8px",
+                                borderLeft: "4px solid #3b82f6",
+                              }}
+                            >
+                              <h4
+                                style={{
+                                  margin: "0 0 0.75rem 0",
+                                  color: "#1e3a8a",
+                                  fontSize: "1rem",
+                                }}
+                              >
+                                Clinical Diagnosis
+                              </h4>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  color: "#334155",
+                                  lineHeight: "1.6",
+                                }}
+                              >
+                                {selectedPatientData.diagnosis || "—"}
+                              </p>
+                            </div>
+
+                            <div
+                              style={{
+                                background: "#f8fafc",
+                                padding: "1.5rem",
+                                borderRadius: "8px",
+                                borderLeft: "4px solid #10b981",
+                              }}
+                            >
+                              <h4
+                                style={{
+                                  margin: "0 0 0.75rem 0",
+                                  color: "#064e3b",
+                                  fontSize: "1rem",
+                                }}
+                              >
+                                Treatment Plan
+                              </h4>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  color: "#334155",
+                                  lineHeight: "1.6",
+                                }}
+                              >
+                                {selectedPatientData.treatment || "—"}
+                              </p>
+                            </div>
+
+                            <div
+                              style={{
+                                background: "#fffbeb",
+                                padding: "1.5rem",
+                                borderRadius: "8px",
+                                borderLeft: "4px solid #f59e0b",
+                              }}
+                            >
+                              <h4
+                                style={{
+                                  margin: "0 0 0.75rem 0",
+                                  color: "#92400e",
+                                  fontSize: "1rem",
+                                }}
+                              >
+                                Clinical Notes
+                              </h4>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  color: "#334155",
+                                  lineHeight: "1.6",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                {selectedPatientData.notes || "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            textAlign: "center",
+                            padding: "3rem 2rem",
+                            background: "#f8fafc",
+                            borderRadius: "8px",
+                            border: "2px dashed #cbd5e1",
+                          }}
+                        >
+                          <FaShieldAlt
+                            size={48}
+                            color="#94a3b8"
+                            style={{ marginBottom: "1rem" }}
+                          />
+                          <h4
+                            style={{ margin: "0 0 0.5rem 0", color: "#475569" }}
+                          >
+                            Restricted Medical Information
+                          </h4>
+                          <p
+                            style={{
+                              margin: 0,
+                              color: "#64748b",
+                              maxWidth: "400px",
+                              marginInline: "auto",
+                            }}
+                          >
+                            Detailed diagnosis, treatment plans, and clinical
+                            notes are hidden for privacy. Request temporary
+                            access to view this data.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </section>
@@ -387,7 +763,10 @@ const NurseDashboard = ({ user, onLogout }) => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" style={{ textAlign: "center", padding: "1rem" }}>
+                      <td
+                        colSpan="4"
+                        style={{ textAlign: "center", padding: "1rem" }}
+                      >
                         No patients found
                       </td>
                     </tr>
@@ -436,7 +815,10 @@ const NurseDashboard = ({ user, onLogout }) => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" style={{ textAlign: "center", padding: "1rem" }}>
+                      <td
+                        colSpan="4"
+                        style={{ textAlign: "center", padding: "1rem" }}
+                      >
                         No access logs found.
                       </td>
                     </tr>

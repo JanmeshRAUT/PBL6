@@ -1,7 +1,17 @@
 .patient-form-modal {
-  max-width: 600px;
+  max-width: 800px;
+  width: 90%;
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevent outer scrolling */
+}
+
+.modal-header {
+  flex-shrink: 0; /* Don't shrink the header */
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f9fafb;
 }
 
 .patient-form {
@@ -9,6 +19,9 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  flex: 1; /* Take available space */
+  overflow-y: auto; /* Allow scrolling within form */
+  min-height: 0; /* Important for flex to work properly */
 }
 
 .form-group {
@@ -32,6 +45,7 @@
   font-size: 0.9375rem;
   font-family: inherit;
   transition: all 0.2s ease;
+  width: 100%; /* ✅ Ensure full width */
 }
 
 .form-group input:focus,
@@ -44,7 +58,7 @@
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr; /* ✅ Force single column for full width flow */
   gap: 1rem;
 }
 
@@ -74,6 +88,7 @@
   padding: 1rem 1.5rem;
   border-top: 1px solid #e2e8f0;
   background: #f9fafb;
+  flex-shrink: 0; /* Don't shrink the footer */
 }
 
 @media (max-width: 768px) {

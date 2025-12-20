@@ -4,6 +4,7 @@ import { API_URL } from "../api";
 import { useNavigate } from "react-router-dom";
 import TrustScoreMeter from "./TrustScoreMeter";
 import PatientFormModal from "./PatientFormModal";
+import { getAuth } from "firebase/auth";
 import {
   FaHospitalUser,
   FaUserMd,
@@ -23,10 +24,26 @@ import {
 } from "react-icons/fa";
 import "../css/Doctor.css";
 import "../css/UserManagement.css";
-import "../css/Notifications.css"; // ✅ Already added - ensures toast styles are loaded
+import "../css/Notifications.css";
+import "../css/MedicalReport.css"; // ✅ Added Medical Report styles
 
 const DoctorDashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
+
+  // ✅ Helper: Get Firebase ID token
+  const getFirebaseToken = useCallback(async () => {
+    try {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        return await currentUser.getIdToken();
+      }
+      return null;
+    } catch (error) {
+      console.error("Error getting Firebase token:", error);
+      return null;
+    }
+  }, []);
 
   // ✅ ALL HOOKS MUST BE AT THE TOP
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -106,7 +123,15 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const fetchAllPatients = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, patients: true }));
-      const res = await axios.get(`${API_URL}/all_patients`);
+      
+      // Get Firebase ID token
+      const token = await getFirebaseToken();
+      
+      const res = await axios.get(`${API_URL}/all_patients`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       if (res.data.success) {
         setAllPatients(res.data.patients || []);
         setError(null);
@@ -117,7 +142,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     } finally {
       setLoading((prev) => ({ ...prev, patients: false }));
     }
-  }, []);
+  }, [getFirebaseToken]);
 
   // ✅ Improved Fetch Access Logs - Uses new DoctorAccessLog collection
   const fetchAccessLogs = useCallback(async () => {
@@ -261,21 +286,26 @@ const DoctorDashboard = ({ user, onLogout }) => {
       setLoading((prev) => ({ ...prev, access: true }));
       setError(null);
 
+      const token = await getFirebaseToken();
       const res = await axios.post(`http://localhost:5000/${type}_access`, {
         name: user.name,
         role: user.role,
         patient_name: selectedPatient,
         justification: reason,
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
 
       if (res.data.success) {
         setAccessResponse(res.data);
         showToast(cleanToastMessage(res.data.message), "success");
         
-        // Auto-show PDF modal if patient data available
-        if (res.data.patient_data && Object.keys(res.data.patient_data).length > 0) {
-          setTimeout(() => setShowPDFModal(true), 500);
-        }
+        // Auto-show PDF modal DISABLE as per user request
+        // if (res.data.patient_data && Object.keys(res.data.patient_data).length > 0) {
+        //   setTimeout(() => setShowPDFModal(true), 500);
+        // }
       } else {
         showToast(cleanToastMessage(res.data.message), "error");
       }
@@ -316,13 +346,27 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const resolvePdfLink = (link) => {
     if (!link) return "";
     if (link.startsWith("http")) return link;
-    return `http://localhost:5000${link.startsWith("/") ? link : `/${link}`}`;
+    // Remove leading slash to prevent double slash if API_URL ends with one
+    const cleanLink = link.startsWith("/") ? link.substring(1) : link;
+    return `${API_URL}/${cleanLink}`;
   };
 
-  // ✅ Handle PDF Download
-  const handleDownloadPDF = () => {
+  // ✅ Handle PDF Download (Secure)
+  const handleDownloadPDF = async () => {
     if (accessResponse?.pdf_link) {
-      window.open(resolvePdfLink(accessResponse.pdf_link), "_blank");
+      try {
+        const token = await getFirebaseToken();
+        const link = resolvePdfLink(accessResponse.pdf_link);
+        
+        // Append token to URL
+        const urlObj = new URL(link);
+        urlObj.searchParams.append("token", token);
+        
+        window.open(urlObj.toString(), "_blank");
+      } catch (error) {
+        console.error("Access token error for PDF:", error);
+        alert("Authentication failed for PDF download.");
+      }
     } else {
       alert("No PDF report available for this patient.");
     }
@@ -352,8 +396,14 @@ const DoctorDashboard = ({ user, onLogout }) => {
     
     // Fetch patient details
     try {
+      const token = await getFirebaseToken();
       const res = await axios.get(
-        `http://localhost:5000/get_patient/${patientName.toLowerCase()}`
+        `http://localhost:5000/get_patient/${patientName.toLowerCase()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       );
       if (res.data.success && res.data.patient) {
         setSelectedPatientData(res.data.patient);
@@ -443,6 +493,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       setRecordLoading(true);
       
       // ✅ CORRECT: POST to /update_patient (no patient name in URL)
+      const token = await getFirebaseToken();
       const res = await axios.post(`${API_URL}/update_patient`, {
         patient_name: selectedPatient,
         updated_by: user.name,
@@ -450,6 +501,10 @@ const DoctorDashboard = ({ user, onLogout }) => {
           diagnosis: recordForm.diagnosis.trim(),
           treatment: recordForm.treatment.trim(),
           notes: recordForm.notes.trim(),
+        }
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
       });
 
@@ -476,22 +531,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   };
 
-  const fieldOrder = [
-    "name",
-    "age",
-    "gender",
-    "email",
-    "diagnosis",
-    "treatment",
-    "notes",
-    "last_visit",
-    "last_updated_at",
-    "last_updated_by",
-  ];
-  const formatLabel = (key) =>
-    key
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+
 
   return (
     <div className="ehr-layout">
@@ -751,48 +791,82 @@ const DoctorDashboard = ({ user, onLogout }) => {
             {/* ============== PATIENT DATA DISPLAY ============== */}
             {accessResponse?.patient_data &&
               Object.keys(accessResponse.patient_data).length > 0 && (
-                <section className="ehr-section patient-data-section">
-                  <div className="section-header">
-                    <h2>📋 Patient Medical Record</h2>
-                    <div className="header-actions">
+                <section className="medical-report-container">
+                  {/* Header */}
+                  <div className="report-header">
+                    <div>
+                      <h2 className="report-header-title">
+                        Medical Status Report
+                      </h2>
+                      <p className="report-subtitle">
+                        CONFIDENTIAL PATIENT RECORD
+                      </p>
+                    </div>
+                    <div className="report-actions">
                       <button
                         className="btn btn-blue btn-sm"
                         onClick={() => setShowPDFModal(true)}
+                        style={{ fontFamily: "'Segoe UI', sans-serif" }}
                       >
-                        <FaFilePdf /> View Patient Report
+                        <FaFilePdf /> View Report
                       </button>
                       <button
                         className="btn btn-gray btn-sm"
                         onClick={handleDownloadPDF}
+                        style={{ fontFamily: "'Segoe UI', sans-serif" }}
                       >
-                        <FaFilePdf /> Download Patient Report
+                        <FaFilePdf /> Download
                       </button>
                     </div>
                   </div>
-                  <div className="patient-info-grid">
-                    {fieldOrder
-                      .filter((k) => accessResponse.patient_data[k])
-                      .map((key) => (
-                        <div key={key} className="patient-info-item">
-                          <label>{formatLabel(key)}</label>
-                          <span>{accessResponse.patient_data[key]}</span>
-                        </div>
-                      ))}
-                    {Object.entries(accessResponse.patient_data)
-                      .filter(([k]) => !fieldOrder.includes(k))
-                      .map(([k, v]) => (
-                        <div key={k} className="patient-info-item">
-                          <label>{formatLabel(k)}</label>
-                          <span>{v}</span>
-                        </div>
-                      ))}
+
+                  {/* Patient Demographics */}
+                  <div className="report-demographics">
+                    <div className="demographic-item">
+                      <strong>Patient Name</strong>
+                      <span>{accessResponse.patient_data.name || "Unknown"}</span>
+                    </div>
+                    <div className="demographic-item">
+                      <strong>Email Address</strong>
+                      <span style={{ fontSize: "1.1rem" }}>{accessResponse.patient_data.email || "N/A"}</span>
+                    </div>
+                    <div className="demographic-item">
+                      <strong>Age / Gender</strong>
+                      <span style={{ fontSize: "1.1rem" }}>{accessResponse.patient_data.age || "—"} yrs / {accessResponse.patient_data.gender || "—"}</span>
+                    </div>
+                    <div className="demographic-item">
+                      <strong>Last Visit</strong>
+                      <span style={{ fontSize: "1.1rem" }}>{accessResponse.patient_data.last_visit || "Not recorded"}</span>
+                    </div>
                   </div>
-                  <div className="access-timestamp">
-                    <FaClock /> Accessed on {new Date().toLocaleString()}
+
+                  {/* Diagnosis Section */}
+                  <div>
+                    <h3 className="report-section-title">Medical Diagnosis</h3>
+                    <div className="diagnosis-box">
+                      {accessResponse.patient_data.diagnosis || "Pending Evaluation"}
+                    </div>
                   </div>
-                  <p style={{ marginTop: "1.5rem", color: "#64748b", fontSize: "0.9rem", fontStyle: "italic" }}>
-                    📌 Full report and PDF are available in this Dashboard after access is granted. Use the "My Patients" tab (in-network) to edit medical records.
-                  </p>
+
+                  {/* Treatment Plan Section */}
+                  <div>
+                    <h3 className="report-section-title">Treatment Plan</h3>
+                    <p className="report-text">
+                      {accessResponse.patient_data.treatment || "No treatment plan recorded."}
+                    </p>
+                  </div>
+
+                  {/* Notes Section */}
+                  <div>
+                    <h3 className="report-section-title">Clinical Notes</h3>
+                    <p className="report-text">
+                      {accessResponse.patient_data.notes || "No clinical notes available."}
+                    </p>
+                  </div>
+
+                  <div className="report-footer">
+                    <FaClock /> Report generated on {new Date().toLocaleString()} by Dr. {user.name}
+                  </div>
                 </section>
               )}
           </>

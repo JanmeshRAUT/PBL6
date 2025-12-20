@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_URL } from "../api";
 import {
   FaBell,
   FaCheckCircle,
@@ -20,8 +21,10 @@ const NotificationCenter = () => {
     const fetchNotifications = async () => {
       try {
         setLoading(true);
+        const token = localStorage.getItem("adminToken");
         const res = await axios.get(
-          "http://localhost:5000/all_doctor_access_logs"
+          `${API_URL}/all_doctor_access_logs`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         const logs = res.data.logs || [];
 

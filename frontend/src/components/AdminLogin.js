@@ -34,12 +34,14 @@ const AdminLogin = ({ onLogin }) => {
       );
 
       if (response.data.success) {
-        // ✅ Store token and redirect
+        // ✅ Store token in localStorage first (before state update)
+        localStorage.setItem("adminToken", token);
         onLogin(token);
         setMessage("✅ Admin login successful!");
+        // Give localStorage time to persist before navigation
         setTimeout(() => {
           navigate("/admin/dashboard");
-        }, 1000);
+        }, 500);
       } else {
         setMessage("❌ Unauthorized: Not an admin user");
       }

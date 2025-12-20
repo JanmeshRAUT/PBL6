@@ -20,7 +20,7 @@ import "../css/AnalyticsCharts.css";
 import "../css/Notifications.css";
 import { FaTimes } from "react-icons/fa";
 
-const AnalyticsCharts = () => {
+const AnalyticsCharts = ({ logs = [], users = [], doctorLogs = [], nurseLogs = [], patients = [] }) => {
   const [trustTrendData, setTrustTrendData] = useState([]);
   const [accessDistribution, setAccessDistribution] = useState([]);
   const [dailyAccessData, setDailyAccessData] = useState([]);
@@ -29,28 +29,46 @@ const AnalyticsCharts = () => {
     highestTrustUser: "Loading...",
     mostActiveDoctor: "Loading...",
     successRate: "0%",
-    avgResponseTime: "0ms",
+    avgResponseTime: "142ms",
     systemUptime: "99.9%",
   });
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch Real Access Logs
+  // ✅ Fetch Real Access Logs OR use props
   useEffect(() => {
     const fetchAnalyticsData = async () => {
       try {
-        // Fetch all access logs
-        const logsRes = await axios.get(`${API_URL}/access_logs/admin`);
-        const logs = logsRes.data.logs || [];
+        setLoading(true);
+        let logsData = logs;
+        let usersData = users;
 
-        // Fetch all users
-        const usersRes = await axios.get(`${API_URL}/patients`);
-        const users = usersRes.data.patients || [];
+        // ✅ If no props provided, fetch from API
+        if (!logs || logs.length === 0) {
+          try {
+            const logsRes = await axios.get(`${API_URL}/access_logs/admin`);
+            logsData = logsRes.data.logs || [];
+          } catch (err) {
+            console.error("Error fetching access logs:", err);
+            logsData = [];
+          }
+        }
+
+        if (!users || users.length === 0) {
+          try {
+            const usersRes = await axios.get(`${API_URL}/get_all_users`);
+            usersData = usersRes.data.users || [];
+          } catch (err) {
+            console.error("Error fetching users:", err);
+            usersData = [];
+          }
+        }
 
         // 📊 Process Access Distribution
-        const normalAccess = logs.filter((l) => l.action?.includes("Normal")).length;
-        const restrictedAccess = logs.filter((l) => l.action?.includes("Restricted")).length;
-        const emergencyAccess = logs.filter((l) => l.action?.includes("Emergency")).length;
-        const deniedAccess = logs.filter((l) => l.status === "Denied").length;
+        const normalAccess = logsData.filter((l) => l.action?.includes("Normal")).length;
+        const restrictedAccess = logsData.filter((l) => l.action?.includes("Restricted")).length;
+        const emergencyAccess = logsData.filter((l) => l.action?.includes("Emergency")).length;
+        const deniedAccess = logsData.filter((l) => l.status === "Denied").length;
 
         setAccessDistribution([
           { name: "Normal", value: normalAccess, color: "#10b981" },
@@ -61,7 +79,7 @@ const AnalyticsCharts = () => {
 
         // 📈 Process Trust Score Trend (Last 7 days)
         const groupedByDay = {};
-        logs.forEach((log) => {
+        logsData.forEach((log) => {
           const date = new Date(log.timestamp);
           const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
           if (!groupedByDay[dayName]) {
@@ -84,7 +102,7 @@ const AnalyticsCharts = () => {
           date.setDate(date.getDate() - i);
           const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-          const dayLogs = logs.filter((log) => {
+          const dayLogs = logsData.filter((log) => {
             const logDate = new Date(log.timestamp);
             return logDate.toDateString() === date.toDateString();
           });
@@ -100,26 +118,26 @@ const AnalyticsCharts = () => {
         setDailyAccessData(dailyData);
 
         // 👥 Role Distribution
-        const doctors = users.filter((u) => u.role?.toLowerCase() === "doctor").length;
-        const nurses = users.filter((u) => u.role?.toLowerCase() === "nurse").length;
-        const patients = users.filter((u) => u.role?.toLowerCase() === "patient").length;
-        const admins = users.filter((u) => u.role?.toLowerCase() === "admin").length;
+        const doctors = usersData.filter((u) => u.role?.toLowerCase() === "doctor").length;
+        const nurses = usersData.filter((u) => u.role?.toLowerCase() === "nurse").length;
+        const patientCount = usersData.filter((u) => u.role?.toLowerCase() === "patient").length;
+        const admins = usersData.filter((u) => u.role?.toLowerCase() === "admin").length;
 
         setRoleDistribution([
           { name: "Doctors", value: doctors, color: "#3b82f6" },
           { name: "Nurses", value: nurses, color: "#10b981" },
-          { name: "Patients", value: patients, color: "#8b5cf6" },
+          { name: "Patients", value: patientCount, color: "#8b5cf6" },
           { name: "Admins", value: admins, color: "#f59e0b" },
         ]);
 
         // 💡 Calculate Insights
-        const highestTrust = users.reduce(
+        const highestTrust = usersData.reduce(
           (max, u) => ((u.trust_score || 0) > (max.trust_score || 0) ? u : max),
           { name: "N/A", trust_score: 0 }
         );
 
         const doctorAccessCounts = {};
-        logs.forEach((log) => {
+        logsData.forEach((log) => {
           if (log.doctor_role?.toLowerCase() === "doctor") {
             doctorAccessCounts[log.doctor_name] = (doctorAccessCounts[log.doctor_name] || 0) + 1;
           }
@@ -130,8 +148,8 @@ const AnalyticsCharts = () => {
           { name: "N/A", count: 0 }
         );
 
-        const totalAttempts = logs.length;
-        const successfulAccess = logs.filter((l) => l.status === "Granted" || l.status === "Approved").length;
+        const totalAttempts = logsData.length;
+        const successfulAccess = logsData.filter((l) => l.status === "Granted" || l.status === "Approved").length;
         const successRate = totalAttempts > 0 ? ((successfulAccess / totalAttempts) * 100).toFixed(1) : 0;
 
         setInsights({
@@ -141,40 +159,63 @@ const AnalyticsCharts = () => {
           avgResponseTime: "142ms",
           systemUptime: "99.9%",
         });
+
+        console.log("✅ Analytics data loaded:", {
+          logsCount: logsData.length,
+          usersCount: usersData.length,
+          normalAccess,
+          restrictedAccess,
+          emergencyAccess,
+          deniedAccess,
+        });
+
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching analytics data:", error);
+        setLoading(false);
       }
     };
 
     fetchAnalyticsData();
     const interval = setInterval(fetchAnalyticsData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
-  }, []);
+  }, [logs, users]); // ✅ Depend on prop changes
+
+  // ✅ Show loading state
+  if (loading) {
+    return (
+      <div style={{ textAlign: "center", padding: "2rem", color: "#64748b" }}>
+        <p>📊 Loading analytics data...</p>
+      </div>
+    );
+  }
 
   // Example: show toast if no data
   if (!trustTrendData.length && !accessDistribution.length && !dailyAccessData.length && !roleDistribution.length) {
-    if (!toast.show) {
-      setToast({
-        show: true,
-        message: "No analytics data available.",
-        type: "warning",
-      });
-      setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
-    }
     return (
       <>
         {toast.show && (
           <div className={`toast-notification toast-${toast.type}`}>
             <div className="toast-content">
-              <span>{toast.message}</span>
+              <span>⚠️ No analytics data available. Please generate some access logs first.</span>
             </div>
             <button className="toast-close" onClick={() => setToast({ ...toast, show: false })}>
               <FaTimes />
             </button>
           </div>
         )}
-        <div style={{ textAlign: "center", padding: "2rem", color: "#64748b" }}>
-          No analytics data to display.
+        <div style={{ 
+          textAlign: "center", 
+          padding: "2rem", 
+          color: "#64748b",
+          backgroundColor: "#f8fafc",
+          borderRadius: "8px",
+          border: "1px solid #e2e8f0"
+        }}>
+          <p>📊 No analytics data to display yet.</p>
+          <p style={{ fontSize: "0.9rem", marginTop: "0.5rem" }}>
+            Try accessing patient records or performing login actions to generate analytics data.
+          </p>
         </div>
       </>
     );

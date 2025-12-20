@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import useIdleTimer from "./hooks/useIdleTimer";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./components/Login";
 import AdminLogin from "./components/AdminLogin";
@@ -11,6 +12,17 @@ function App() {
   const [user, setUser] = useState(null);
   const [adminToken, setAdminToken] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // ✅ Auto-logout after 5 minutes (300,000 ms) of inactivity
+  const handleSessionTimeout = () => {
+    if (user || adminToken) {
+      alert("⚠️ Session expired due to inactivity. Please login again.");
+      handleLogout();
+      handleAdminLogout();
+    }
+  };
+
+  useIdleTimer(300000, handleSessionTimeout, !!(user || adminToken));
 
   // ✅ Restore user session on page load
   useEffect(() => {

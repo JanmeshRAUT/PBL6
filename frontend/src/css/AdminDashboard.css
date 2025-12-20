@@ -746,3 +746,41 @@ body {
 
 /* ============== REMOVE DUPLICATE TOAST STYLES ============== */
 /* Toast notifications are now in Notifications.css */
+
+/* ============== SECTION HEADER ============== */
+/* Added to align headers properly in Admin Dashboard */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-bottom: 2px solid var(--gray-100);
+  padding-bottom: 1rem;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none !important; /* Override default behavior if any */
+  padding: 0 !important;
+}
+
+.section-description {
+  color: var(--gray-600);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+/* Compact Date Filter overrides for header usage */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
