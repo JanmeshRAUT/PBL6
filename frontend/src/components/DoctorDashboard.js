@@ -1199,8 +1199,8 @@ const DoctorDashboard = ({ user, onLogout }) => {
           onClose={() => setShowPatientForm(false)}
           doctorName={user.name}
           onSuccess={() => {
-            fetchAllPatients(); // ✅ Refresh main patient list
-            fetchMyPatients();  // ✅ Refresh "My Patients" list
+            fetchAllPatients();
+            fetchMyPatients();
             showToast("✅ Patient added successfully!", "success");
             setShowPatientForm(false);
           }}
