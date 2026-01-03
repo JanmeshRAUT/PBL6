@@ -1,0 +1,30 @@
+﻿
+# Environment & Secrets
+backend/firebase_config.json
+.env
+.env.local
+.env.*.local
+
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+backend/__pycache__/
+backend/*.egg-info/
+backend/dist/
+frontend/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+backend/firebase_config.json

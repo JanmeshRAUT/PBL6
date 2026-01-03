@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_URL } from "../api";
 import {
   FaBell,
   FaCheckCircle,
@@ -10,59 +11,67 @@ import {
 } from "react-icons/fa";
 import "../css/NotificationCenter.css";
 
-const NotificationCenter = () => {
+const NotificationCenter = ({ logs: externalLogs }) => {
   const [notifications, setNotifications] = useState([]);
   const [showPanel, setShowPanel] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Fetch Real Notifications from Access Logs
+  // ✅ Transform Logs to Notifications
+  const processLogs = (logs) => {
+    return logs.slice(0, 15).map((log, idx) => {
+      let type = "info";
+      let title = "ℹ️ Access Request";
+      let icon = <FaInfoCircle />;
+
+      if (log.status === "Granted" || log.status === "Approved") {
+        type = "success";
+        title = "✅ Access Granted";
+        icon = <FaCheckCircle />;
+      } else if (log.status === "Denied") {
+        type = "error";
+        title = "❌ Access Denied";
+        icon = <FaTimesCircle />;
+      } else if (log.status === "Flagged") {
+        type = "warning";
+        title = "⚠️ Flagged for Review";
+        icon = <FaExclamationCircle />;
+      }
+
+      return {
+        id: `${idx}-${log.timestamp}`,
+        type,
+        title,
+        message: `Dr. ${log.doctor_name || "Unknown"} - ${log.action || "Request"}`,
+        details: `Status: ${log.status} ${log.patient_name ? `| Pt: ${log.patient_name}` : ""}`,
+        timestamp: new Date(log.timestamp),
+        read: false,
+        icon,
+        action: log.action,
+        doctorName: log.doctor_name,
+        patientName: log.patient_name,
+      };
+    });
+  };
+
+  // ✅ Handle External or Internal Data Source
   useEffect(() => {
+    // 1. Data Provided by Parent (Optimized)
+    if (externalLogs) {
+        setNotifications(processLogs(externalLogs));
+        return;
+    }
+
+    // 2. Fetch Independently (Fallback)
     const fetchNotifications = async () => {
       try {
         setLoading(true);
+        const token = localStorage.getItem("adminToken");
         const res = await axios.get(
-          "http://localhost:5000/all_doctor_access_logs"
+          `${API_URL}/all_doctor_access_logs`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         const logs = res.data.logs || [];
-
-        // Transform logs into notifications (last 15 recent)
-        const recentLogs = logs.slice(0, 15).map((log, idx) => {
-          let type = "info";
-          let title = "ℹ️ Access Request";
-          let icon = <FaInfoCircle />;
-
-          if (log.status === "Granted" || log.status === "Approved") {
-            type = "success";
-            title = "✅ Access Granted";
-            icon = <FaCheckCircle />;
-          } else if (log.status === "Denied") {
-            type = "error";
-            title = "❌ Access Denied";
-            icon = <FaTimesCircle />;
-          } else if (log.status === "Flagged") {
-            type = "warning";
-            title = "⚠️ Flagged for Review";
-            icon = <FaExclamationCircle />;
-          }
-
-          return {
-            id: `${idx}-${log.timestamp}`,
-            type,
-            title,
-            message: `Dr. ${log.doctor_name} - ${log.action || "Access Request"} (Patient: ${
-              log.patient_name || "N/A"
-            })`,
-            details: `Status: ${log.status}`,
-            timestamp: new Date(log.timestamp),
-            read: false,
-            icon,
-            action: log.action,
-            doctorName: log.doctor_name,
-            patientName: log.patient_name,
-          };
-        });
-
-        setNotifications(recentLogs);
+        setNotifications(processLogs(logs));
       } catch (error) {
         console.error("Error fetching notifications:", error);
       } finally {
@@ -71,10 +80,9 @@ const NotificationCenter = () => {
     };
 
     fetchNotifications();
-    // Refresh every 20 seconds for real-time updates
     const interval = setInterval(fetchNotifications, 20000);
     return () => clearInterval(interval);
-  }, []);
+  }, [externalLogs]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

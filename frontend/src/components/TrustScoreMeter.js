@@ -66,70 +66,71 @@ const TrustScoreMeter = ({ score }) => {
     return <span className="badge badge-red">Low Trust</span>;
   };
 
-  const circumference = 2 * Math.PI * 45;
-  const offset = circumference - (animatedScore / 100) * circumference;
+  /* 
+     Semi-circle calculation:
+     - Circumference = PI * Radius (for half circle)
+     - We use a full circle SVG but trace only half of it using dasharray
+  */
+  const radius = 80;
+  const strokeWidth = 12;
+  const normalizedRadius = radius - strokeWidth * 0.5;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  // We want to show a semi-circle (50% of circle)
+  // The progress should map 0-100 score to 0-50% of the circle
+  const strokeDashoffset = circumference - ((animatedScore / 200) * circumference); 
+  // Base background track should be exactly half circle
+  const trackOffset = circumference * 0.5;
 
   return (
     <div className="trust-meter-card">
       <div className="trust-meter-flex">
         <div className="meter-circle">
-          <svg className="meter-svg" viewBox="0 0 100 100">
+          <svg className="meter-svg" viewBox="0 0 160 160">
             <defs>
-              <linearGradient
-                id="greenGradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
+              <linearGradient id="greenGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#10b981" />
                 <stop offset="100%" stopColor="#34d399" />
               </linearGradient>
-              <linearGradient
-                id="yellowGradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
+              <linearGradient id="yellowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#f59e0b" />
                 <stop offset="100%" stopColor="#fbbf24" />
               </linearGradient>
-              <linearGradient
-                id="redGradient"
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
+              <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#ef4444" />
                 <stop offset="100%" stopColor="#f87171" />
               </linearGradient>
             </defs>
 
+            {/* Background Track (Half Circle) */}
             <circle
-              cx="50"
-              cy="50"
-              r="45"
-              stroke="#e5e7eb"
-              strokeWidth="8"
+              cx="80"
+              cy="80"
+              r={normalizedRadius}
+              stroke="#e2e8f0"
+              strokeWidth={strokeWidth}
               fill="none"
+              style={{ strokeDasharray: circumference, strokeDashoffset: trackOffset }}
+              transform="rotate(0 80 80)"
             />
+
+            {/* Progress Arc */}
             <circle
               className="meter-progress"
-              cx="50"
-              cy="50"
-              r="45"
+              cx="80"
+              cy="80"
+              r={normalizedRadius}
               stroke={getStrokeColor()}
-              strokeWidth="8"
+              strokeWidth={strokeWidth}
               fill="none"
               strokeDasharray={circumference}
-              strokeDashoffset={offset}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
             />
           </svg>
+          
           <div className="meter-score">
-            {animatedScore}
-            <span className="meter-unit">%</span>
+            <span className="score-value">{animatedScore}</span>
+            <span className="meter-unit">Trust Score</span>
           </div>
         </div>
 

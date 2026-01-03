@@ -14,14 +14,15 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
 
+
 # ---------- CONFIGURATION (no env as requested) ----------
 ADMIN_EMAIL = "admin@ehr.com"
-TRUSTED_NETWORK = ipaddress.ip_network("192.168.1.0/24")
+TRUSTED_NETWORK = ipaddress.ip_network("192.168.5.0/24")
 TRUST_THRESHOLD = 40
 
 # Email placeholders (REPLACE before running)
-EMAIL_SENDER = "janmeshraut.mitadt@gmail.com"
-EMAIL_PASSWORD = "njvx xusb hbzy naaf"  # <-- replace
+EMAIL_SENDER = "medtrustai@gmail.com"
+EMAIL_PASSWORD = "ujle dfbp gswy xqcy"
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 
@@ -52,73 +53,60 @@ def send_otp_email(email, otp, name):
     try:
         if not email or "@" not in email:
             return False
-        subject = "🔐 Your MedTrust EHR Login OTP"
-        # --- Professional HTML Email Template ---
+        subject = "🔐 Verify your login - MedTrust AI"
+        
+        # --- Modern Professional HTML Email Template ---
+        current_year = datetime.utcnow().year
         body = f"""
+        <!DOCTYPE html>
         <html>
-        <body style="font-family: 'Segoe UI', Arial, sans-serif; background: #f4f8fb; margin:0; padding:0;">
-          <table width="100%" bgcolor="#f4f8fb" cellpadding="0" cellspacing="0" style="padding: 0; margin: 0;">
-            <tr>
-              <td align="center">
-                <table width="420" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="border-radius:12px; box-shadow:0 4px 24px rgba(37,99,235,0.08); margin:2rem 0;">
-                  <tr>
-                    <td style="padding:2rem 2rem 1rem 2rem; text-align:center;">
-                      <h2 style="margin:0; color:#2563eb; font-size:1.5rem; font-weight:700; letter-spacing:-1px;">
-                        MedTrust <span style="color:#10b981;">AI</span>
-                      </h2>
-                      <p style="margin:0.5rem 0 0 0; color:#64748b; font-size:1rem;">
-                        Secure Electronic Health Records Access
-                      </p>
+        <head>
+            <meta charset="UTF-8">
+            <title>Login Verification</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #f4f7fa; color: #333333;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f7fa; padding: 40px 0;">
+                <tr>
+                    <td align="center">
+                        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 500px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); overflow: hidden;">
+                            <tr>
+                                <td style="padding: 30px 40px; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); text-align: center;">
+                                    <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: 1px;">MEDTRUST AI</h1>
+                                    <p style="margin: 5px 0 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.9);">Secure Health Records</p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 40px 40px;">
+                                    <p style="margin: 0 0 16px 0; font-size: 16px; color: #334155;">Hi <strong>{name}</strong>,</p>
+                                    <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #475569;">
+                                        A request to log in to your account was received. Use the code below to securely sign in.
+                                    </p>
+                                    <div style="background-color: #f0fdf4; border: 1px dashed #86efac; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+                                        <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 700; color: #15803d; letter-spacing: 6px; display: block;">{otp}</span>
+                                    </div>
+                                    <p style="margin: 0; font-size: 14px; color: #64748b; text-align: center;">
+                                        This code expires in <strong>3 minutes</strong> for your security.
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="background-color: #f8fafc; padding: 20px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+                                    <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8;">
+                                        If you didn't request this code, you can safely ignore this email.
+                                    </p>
+                                    <p style="margin: 0; font-size: 12px; color: #cbd5e1;">
+                                        &copy; {current_year} MedTrust AI. Use responsibly.
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
                     </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:1.5rem 2rem 0.5rem 2rem;">
-                      <p style="margin:0; color:#1e293b; font-size:1.05rem;">
-                        Hi <strong>{name}</strong>,
-                      </p>
-                      <p style="margin:1rem 0 0.5rem 0; color:#334155; font-size:1rem;">
-                        Your One-Time Password (OTP) for login is:
-                      </p>
-                      <div style="margin:1.5rem 0; text-align:center;">
-                        <span style="
-                          display:inline-block;
-                          background:#f1f5f9;
-                          color:#2563eb;
-                          font-size:2.2rem;
-                          font-weight:700;
-                          letter-spacing:0.25rem;
-                          padding:0.75rem 2.5rem;
-                          border-radius:10px;
-                          border:1px solid #e2e8f0;
-                          box-shadow:0 2px 8px rgba(37,99,235,0.08);
-                        ">{otp}</span>
-                      </div>
-                      <p style="margin:0.5rem 0 0 0; color:#64748b; font-size:0.97rem;">
-                        <strong>Valid for 3 minutes.</strong> Please do not share this OTP with anyone.
-                      </p>
-                      <p style="margin:1.5rem 0 0 0; color:#64748b; font-size:0.95rem;">
-                        If you did not request this OTP, please ignore this email.
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:2rem 2rem 1.5rem 2rem; text-align:center;">
-                      <div style="margin:1.5rem 0 0 0; color:#94a3b8; font-size:0.9rem;">
-                        <hr style="border:none; border-top:1px solid #e2e8f0; margin:1.5rem 0;">
-                        <span>
-                          MedTrust AI &copy; {datetime.utcnow().year}<br>
-                          <span style="color:#2563eb;">Secure EHR Platform</span>
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
+                </tr>
+            </table>
         </body>
         </html>
         """
+        
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = EMAIL_SENDER
@@ -153,56 +141,68 @@ def create_patient_pdf_bytes(patient: dict, font_paths=None):
         elements = []
         styles = getSampleStyleSheet()
         
-        # ✅ PROFESSIONAL STYLES
+        # ✅ MODERN MEDICAL REPORT STYLES
+        # Color Palette: Professional Medical Blue
+        ACCENT_COLOR = colors.HexColor('#0f766e') # Teal-700
+        HEADER_BG = colors.HexColor('#f0fdfa')    # Teal-50
+        TEXT_COLOR = colors.HexColor('#334155')   # Slate-700
+        LABEL_COLOR = colors.HexColor('#64748b')  # Slate-500
+        
         title_style = ParagraphStyle(
             'ProTitle',
             parent=styles['Heading1'],
-            fontSize=24,
-            textColor=colors.HexColor('#1e3a8a'),
-            spaceAfter=6,
-            alignment=1,
+            fontSize=22,
+            textColor=ACCENT_COLOR,
+            spaceAfter=4,
+            alignment=0,
             fontName='Helvetica-Bold',
-            letterSpacing=1
+            leading=26
         )
         
         subtitle_style = ParagraphStyle(
             'ProSubtitle',
             parent=styles['Normal'],
-            fontSize=11,
-            textColor=colors.HexColor('#64748b'),
-            alignment=1,
+            fontSize=10,
+            textColor=LABEL_COLOR,
+            alignment=0,
             spaceAfter=20,
-            fontName='Helvetica'
+            fontName='Helvetica',
+            textTransform='uppercase',
+            letterSpacing=1
         )
         
         section_header_style = ParagraphStyle(
             'SectionHeader',
             parent=styles['Heading2'],
-            fontSize=13,
-            textColor=colors.white,
-            spaceAfter=10,
+            fontSize=12,
+            textColor=ACCENT_COLOR,
+            spaceAfter=8,
             spaceBefore=12,
             fontName='Helvetica-Bold',
-            leftIndent=8
+            textTransform='uppercase',
+            borderPadding=4,
+            borderColor=ACCENT_COLOR,
+            borderWidth=0,
+            # We'll use a line in the table instead of a border here
         )
         
         field_label_style = ParagraphStyle(
             'FieldLabel',
             parent=styles['Normal'],
             fontSize=9,
-            textColor=colors.HexColor('#334155'),
+            textColor=LABEL_COLOR,
             spaceAfter=2,
             fontName='Helvetica-Bold',
-            letterSpacing=0.5
         )
         
         field_value_style = ParagraphStyle(
             'FieldValue',
             parent=styles['Normal'],
-            fontSize=10,
-            textColor=colors.HexColor('#1e293b'),
+            fontSize=11,
+            textColor=TEXT_COLOR,
             spaceAfter=8,
-            fontName='Helvetica'
+            fontName='Helvetica',
+            leading=14
         )
         
         footer_style = ParagraphStyle(
@@ -211,7 +211,8 @@ def create_patient_pdf_bytes(patient: dict, font_paths=None):
             fontSize=8,
             textColor=colors.HexColor('#94a3b8'),
             alignment=1,
-            spaceAfter=4
+            spaceAfter=4,
+            fontName='Helvetica'
         )
         
         # ✅ SAFE VALUE GETTER
@@ -224,159 +225,113 @@ def create_patient_pdf_bytes(patient: dict, font_paths=None):
             except:
                 return str(value)
         
-        # ✅ HEADER: LOGO + TITLE
+        # ✅ HEADER: Modern Layout
+        # Logo placeholder (text)
         header_data = [
             [
-                Paragraph("<b>🏥 MEDTRUST AI</b><br/><font size=8>Electronic Health Records System</font>", subtitle_style),
-                Paragraph("<b>PATIENT HEALTH REPORT</b><br/><font size=8>Confidential Medical Document</font>", title_style)
+                Paragraph("<b>MEDTRUST AI</b>", ParagraphStyle('Logo', parent=title_style, fontSize=18, textColor=colors.HexColor('#0f766e'))),
+                Paragraph("<b>CONFIDENTIAL MEDICAL REPORT</b>", ParagraphStyle('ReportTitle', parent=subtitle_style, alignment=2))
             ]
         ]
-        header_table = Table(header_data, colWidths=[2*inch, 4*inch])
+        header_table = Table(header_data, colWidths=[3*inch, 3*inch])
         header_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0f9ff')),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LINEBELOW', (0, 0), (-1, -1), 2, ACCENT_COLOR),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-            ('TOPPADDING', (0, 0), (-1, -1), 12),
-            ('LINEBELOW', (0, 0), (-1, -1), 2, colors.HexColor('#2563eb')),
         ]))
         elements.append(header_table)
-        elements.append(Spacer(1, 0.3*inch))
+        elements.append(Spacer(1, 0.25*inch))
         
         # ✅ PATIENT DEMOGRAPHICS SECTION
-        elements.append(Paragraph("PATIENT DEMOGRAPHICS", section_header_style))
+        elements.append(Paragraph("Patient Profile", section_header_style))
+        elements.append(Table([[""]], colWidths=[6*inch], style=[('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1'))]))
+        elements.append(Spacer(1, 0.1*inch))
         
         demo_data = [
             [
-                Paragraph("<b>Full Name</b>", field_label_style),
+                Paragraph("FULL NAME", field_label_style),
                 Paragraph(safe_get("name", "Unknown"), field_value_style),
-                Paragraph("<b>Date of Birth / Age</b>", field_label_style),
-                Paragraph(f"{safe_get('age', '0')} years old", field_value_style),
+                Paragraph("AGE / GENDER", field_label_style),
+                Paragraph(f"{safe_get('age', '—')} yrs / {safe_get('gender')}", field_value_style),
             ],
             [
-                Paragraph("<b>Gender</b>", field_label_style),
-                Paragraph(safe_get("gender"), field_value_style),
-                Paragraph("<b>Email Address</b>", field_label_style),
+                Paragraph("EMAIL", field_label_style),
                 Paragraph(safe_get("email"), field_value_style),
+                Paragraph("REPORT DATE", field_label_style),
+                Paragraph(datetime.utcnow().strftime("%B %d, %Y"), field_value_style),
             ]
         ]
         
-        demo_table = Table(demo_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+        demo_table = Table(demo_data, colWidths=[1.25*inch, 2.25*inch, 1.25*inch, 1.25*inch])
         demo_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f1f5f9')),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-            ('TOPPADDING', (0, 0), (-1, -1), 8),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#dbeafe')),
-            ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#dbeafe')),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
         ]))
         elements.append(demo_table)
         elements.append(Spacer(1, 0.25*inch))
         
         # ✅ CLINICAL DIAGNOSIS SECTION
-        elements.append(Paragraph("CLINICAL DIAGNOSIS", section_header_style))
+        elements.append(Paragraph("Clinical Diagnosis", section_header_style))
+        elements.append(Table([[""]], colWidths=[6*inch], style=[('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1'))]))
+        elements.append(Spacer(1, 0.1*inch))
         
-        diag_data = [
-            [
-                Paragraph("<b>Primary Diagnosis</b>", field_label_style),
-                Paragraph(safe_get("diagnosis", "Pending"), field_value_style),
-            ]
-        ]
-        
-        diag_table = Table(diag_data, colWidths=[1.5*inch, 4.5*inch])
+        # Highlight box for diagnosis
+        diag_data = [[Paragraph(safe_get("diagnosis", "Pending Evaluation"), field_value_style)]]
+        diag_table = Table(diag_data, colWidths=[6*inch])
         diag_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f0fdf4')),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#d1fae5')),
+            ('BACKGROUND', (0, 0), (-1, -1), HEADER_BG),
+            ('border', (0, 0), (-1, -1), 0.5, colors.HexColor('#ccfbf1')),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('ROUNDEDCORNERS', [8, 8, 8, 8]), 
         ]))
         elements.append(diag_table)
         elements.append(Spacer(1, 0.25*inch))
         
         # ✅ TREATMENT PLAN SECTION
-        elements.append(Paragraph("TREATMENT PLAN", section_header_style))
+        elements.append(Paragraph("Treatment Plan", section_header_style))
+        elements.append(Table([[""]], colWidths=[6*inch], style=[('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1'))]))
+        elements.append(Spacer(1, 0.1*inch))
         
         treatment_text = safe_get("treatment", "No treatment plan specified")
         elements.append(Paragraph(treatment_text, field_value_style))
         elements.append(Spacer(1, 0.25*inch))
         
         # ✅ CLINICAL NOTES SECTION
-        elements.append(Paragraph("CLINICAL NOTES & OBSERVATIONS", section_header_style))
+        elements.append(Paragraph("Clinical Notes & Observations", section_header_style))
+        elements.append(Table([[""]], colWidths=[6*inch], style=[('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1'))]))
+        elements.append(Spacer(1, 0.1*inch))
         
         notes_text = safe_get("notes", "No additional clinical notes")
         elements.append(Paragraph(notes_text, field_value_style))
-        elements.append(Spacer(1, 0.25*inch))
+        elements.append(Spacer(1, 0.5*inch))
         
-        # ✅ VISIT HISTORY SECTION
-        elements.append(Paragraph("VISIT & FOLLOW-UP INFORMATION", section_header_style))
-        
-        visit_data = [
-            [
-                Paragraph("<b>Last Clinical Visit</b>", field_label_style),
-                Paragraph(safe_get("last_visit", "Not recorded"), field_value_style),
-            ]
-        ]
-        
-        visit_table = Table(visit_data, colWidths=[1.5*inch, 4.5*inch])
-        visit_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fef3c7')),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-            ('TOPPADDING', (0, 0), (-1, -1), 10),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#fcd34d')),
-        ]))
-        elements.append(visit_table)
-        elements.append(Spacer(1, 0.4*inch))
-        
-        # ✅ FOOTER: SIGNATURE + METADATA
-        footer_line_table = Table([["" * 100]], colWidths=[6*inch])
-        footer_line_table.setStyle(TableStyle([
+        # ✅ FOOTER: Metadata
+        footer_line = Table([[""]], colWidths=[6.5*inch])
+        footer_line.setStyle(TableStyle([
             ('LINEABOVE', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
         ]))
-        elements.append(footer_line_table)
+        elements.append(footer_line)
         elements.append(Spacer(1, 0.1*inch))
         
-        elements.append(Paragraph("DOCUMENT INFORMATION", footer_style))
         elements.append(Paragraph(
-            f"<b>Generated on:</b> {datetime.utcnow().strftime('%B %d, %Y at %I:%M %p UTC')}<br/>"
-            f"<b>System:</b> MedTrust AI - Secure Electronic Health Records<br/>"
-            f"<b>Document Status:</b> CONFIDENTIAL - Medical Information<br/>"
-            f"<b>Access Control:</b> Role-Based & AI-Driven Trust System",
+            f"Generated via MedTrust AI System | {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
             footer_style
         ))
-        elements.append(Spacer(1, 0.1*inch))
         
         elements.append(Paragraph(
-            "This document contains sensitive personal health information and is intended for authorized healthcare professionals only. "
-            "Unauthorized distribution is prohibited. All access is logged and audited.",
+            "This document is a confidential medical record. Unauthorized access or distribution is strictly prohibited.",
             ParagraphStyle(
                 'Disclaimer',
                 parent=styles['Normal'],
-                fontSize=7,
+                fontSize=8,
                 textColor=colors.HexColor('#ef4444'),
-                alignment=0,
+                alignment=1,
                 fontName='Helvetica-Oblique'
             )
         ))

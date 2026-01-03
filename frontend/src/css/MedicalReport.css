@@ -1,0 +1,263 @@
+/* ============== MEDICAL REPORT STYLES ============== */
+.medical-report-container {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #334155;
+  width: 100%;
+  margin: 0.75rem 0 0 0;
+  position: relative;
+  /* Removed scroll constraints to fit in natural flow */
+}
+
+.medical-report-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(90deg, #10b981 0%, #3b82f6 100%);
+}
+
+.report-header {
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.report-header-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.75rem;
+  color: #0f172a;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.report-subtitle {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Patient Demographics Grid */
+.report-demographics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+}
+
+.demographic-item strong {
+  display: block;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.demographic-item span {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Section Headers */
+.report-section-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f766e;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-section-title::before {
+  content: "";
+  display: block;
+  width: 4px;
+  height: 16px;
+  background: #0f766e;
+  border-radius: 2px;
+}
+
+/* Diagnosis Box */
+.diagnosis-box {
+  padding: 1.25rem;
+  background-color: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #115e59;
+  margin-bottom: 2rem;
+}
+
+/* Text Content */
+.report-text {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #334155;
+  margin: 0 0 2rem 0;
+  white-space: pre-wrap;
+  padding-left: 1rem;
+  border-left: 2px solid #e2e8f0;
+}
+
+/* Footer */
+.report-footer {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .medical-report-container {
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+
+  .report-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .report-actions {
+    width: 100%;
+  }
+  
+  .report-actions button {
+    flex: 1;
+  }
+  
+  .report-demographics {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .report-demographics {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============== COMPACT REPORT (Dashboard View) ============== */
+.medical-report-container.compact {
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  margin-top: 0.75rem;
+  overflow: hidden;
+}
+
+.medical-report-container.compact::before {
+  height: 4px;
+}
+
+.medical-report-container.compact .report-header {
+  padding: 0.75rem 1rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid #f1f5f9;
+  background: white;
+}
+
+.medical-report-container.compact .report-header-title {
+  font-size: 1.1rem;
+  margin-bottom: 0.2rem;
+}
+
+.medical-report-container.compact .report-subtitle {
+  font-size: 0.7rem;
+  margin: 0;
+}
+
+.medical-report-container.compact .report-actions {
+  gap: 0.5rem;
+}
+
+.medical-report-container.compact .btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  min-height: 32px;
+}
+
+.medical-report-container.compact .report-demographics {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0;
+  background: #f8fafc;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.medical-report-container.compact .demographic-item strong {
+  font-size: 0.7rem;
+  margin-bottom: 0.1rem;
+}
+
+.medical-report-container.compact .demographic-item span {
+  font-size: 0.9rem;
+}
+
+.medical-report-container.compact .report-section-title {
+  font-size: 0.95rem;
+  margin: 1rem 1rem 0.5rem 1rem;
+}
+
+.medical-report-container.compact .diagnosis-box {
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  margin: 0 1rem 1rem 1rem;
+}
+
+.medical-report-container.compact .report-text {
+  font-size: 0.9rem;
+  margin: 0 1rem 1rem 1rem;
+  padding-left: 0.75rem;
+}
+
+.medical-report-container.compact .report-footer {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  margin-top: 0;
+  background: #f8fafc;
+}

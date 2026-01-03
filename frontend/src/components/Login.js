@@ -88,13 +88,24 @@ const Login = ({ onLogin }) => {
 			return;
 		}
 
-		if (!name.trim() || !role) return setMessage("❌ Enter name & role!");
-		if (!email.trim()) return setMessage("❌ Enter email address!");
-		if (!email.includes("@")) return setMessage("❌ Enter a valid email address!");
+		// ✅ Validation for non-admin users
+		if (!name.trim() || !role) {
+			return setMessage("❌ Enter name & role!");
+		}
+		if (!email.trim()) {
+			return setMessage("❌ Enter email address!");
+		}
+		if (!email.includes("@")) {
+			return setMessage("❌ Enter a valid email address!");
+		}
 
 		try {
 			setLoading(true);
 			setMessage("");
+			
+			// ✅ NEW: Show loading message for verification
+			setMessage("🔍 Verifying credentials with database...");
+			
 			const res = await axios.post(`${API_URL}/user_login`, {
 				name,
 				role,
@@ -106,16 +117,32 @@ const Login = ({ onLogin }) => {
 				setStep(2);
 				setTimer(180);
 				setOtp("");
-				setMessage((res.data.message || "OTP sent to your email"));
+				setMessage((res.data.message || "✅ OTP sent to your email"));
 			} else {
-				setMessage("❌ " + (res.data.error || "Login failed"));
+				// ✅ NEW: Enhanced error messages from backend
+				const errorMsg = res.data.error || "Login failed";
+				if (errorMsg.includes("mismatch")) {
+					setMessage("❌ Name or role does not match our records. Please verify and try again.");
+				} else if (errorMsg.includes("not found")) {
+					setMessage("❌ User account not found. Please contact your administrator.");
+				} else {
+					setMessage("❌ " + errorMsg);
+				}
 			}
 		} catch (error) {
 			console.error("Login error:", error);
 			if (error.response?.data?.error) {
-				setMessage("❌ " + error.response.data.error);
+				const errorMsg = error.response.data.error;
+				// ✅ NEW: Parse error message intelligently
+				if (errorMsg.includes("mismatch") || errorMsg.includes("Expected:")) {
+					setMessage("❌ " + errorMsg);
+				} else if (errorMsg.includes("not found")) {
+					setMessage("❌ User not found in our system.");
+				} else {
+					setMessage("❌ " + errorMsg);
+				}
 			} else {
-				setMessage("❌ Failed to send OTP. Check your email and internet connection.");
+				setMessage("❌ Failed to verify credentials. Check your internet connection and try again.");
 			}
 		} finally {
 			setLoading(false);
@@ -314,7 +341,7 @@ const Login = ({ onLogin }) => {
 								{loading ? (
 									isAdminEmail(email) 
 										? "Authenticating Admin..." 
-										: "Authenticating..."
+										: "Verifying Credentials..."
 								) : (
 									isAdminEmail(email) 
 										? "🔐 Access Admin Panel" 
@@ -327,21 +354,19 @@ const Login = ({ onLogin }) => {
 					)}
 
 					{step === 2 && (
-						<form className="login-form" onSubmit={handleVerifyOtp}>
-							<div className="form-head small">
-								<button
-									type="button"
-									className="link-back"
-									onClick={goBack}
-								>
-									← Back
-								</button>
-								<h2 className="form-title">Verify OTP</h2>
+						<form className="login-form otp-mode" onSubmit={handleVerifyOtp}>
+							<div className="otp-card-header">
+								<h2 className="otp-title">Security Check</h2>
+								<p className="otp-subtitle">
+									Enter the 6-digit code sent to your email
+								</p>
 							</div>
 
-							<p className="otp-timer">
-								OTP Expires in <strong>{formatTime(timer)}</strong>
-							</p>
+							<div style={{ textAlign: "center" }}>
+								<div className={`otp-timer ${timer < 30 ? "timer-active" : ""}`}>
+									⏱ Expiring in {formatTime(timer)}
+								</div>
+							</div>
 
 							{/* progress bar */}
 							<div className="progress-wrap" aria-hidden>
@@ -351,37 +376,52 @@ const Login = ({ onLogin }) => {
 								/>
 							</div>
 
-							<input
-								className="input otp"
-								placeholder="6-digit OTP"
-								maxLength="6"
-								value={otp}
-								onChange={(e) =>
-									setOtp(e.target.value.replace(/\D/g, ""))
-								}
-								inputMode="numeric"
-								aria-label="OTP"
-							/>
+							<div className="input-group">
+								<input
+									className="otp"
+									placeholder="• • • • • •"
+									maxLength="6"
+									value={otp}
+									onChange={(e) =>
+										setOtp(e.target.value.replace(/\D/g, ""))
+									}
+									inputMode="numeric"
+									aria-label="OTP"
+									autoFocus
+								/>
+							</div>
 
 							<button
 								className="btn"
 								disabled={loading || !otp.trim()}
 							>
-								{loading ? "Verifying..." : "Verify OTP"}
+								{loading ? "Verifying..." : "Verify Identity →"}
 							</button>
 
 							<div className="otp-actions">
 								<button
 									type="button"
-									className="link-btn"
-									onClick={resendOtp}
-									disabled={loading || timer > 0}
+									className="link-back"
+									onClick={goBack}
 								>
-									Resend OTP
+									← Go Back
 								</button>
-								<span className="note">
-									Available when timer reaches 00:00
-								</span>
+								
+								<div style={{ textAlign: "right" }}>
+									<button
+										type="button"
+										className="link-btn"
+										onClick={resendOtp}
+										disabled={loading || timer > 0}
+									>
+										Resend Code
+									</button>
+									{timer > 0 && (
+										<span className="note">
+											Wait {formatTime(timer)}
+										</span>
+									)}
+								</div>
 							</div>
 
 							{message && <p className="message">{message}</p>}

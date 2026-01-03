@@ -2,7 +2,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API_URL } from "../api";
 import { useNavigate } from "react-router-dom";
-import TrustScoreMeter from "./TrustScoreMeter";
+import { getAuth } from "firebase/auth";
+import NurseHomeTab from "./nurse_tabs/NurseHomeTab";
+import NursePatientsTab from "./nurse_tabs/NursePatientsTab";
+import NurseAccessLogsTab from "./nurse_tabs/NurseAccessLogsTab";
 import {
   FaUserNurse,
   FaHospitalUser,
@@ -11,17 +14,46 @@ import {
   FaUserInjured,
   FaGlobeAsia,
   FaClock,
-  FaKey,
   FaShieldAlt,
+  FaCheckCircle,
   FaTimes,
 } from "react-icons/fa";
 import "../css/NurseDashboard.css";
-import "../css/Notifications.css"; // ✅ ADD THIS
+import "../css/Notifications.css";
 
 const NurseDashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("dashboard"); // ✅ Tabs
+  // ✅ Helper: Get Firebase ID token with race-condition fix
+  const getFirebaseToken = useCallback(async () => {
+    return new Promise((resolve) => {
+      const auth = getAuth();
+      if (auth.currentUser) {
+        auth.currentUser.getIdToken().then(resolve).catch((err) => {
+            console.error("Error getting immediate token:", err);
+            resolve(null);
+        });
+      } else {
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+          unsubscribe();
+          if (user) {
+            try {
+              const token = await user.getIdToken();
+              resolve(token);
+            } catch (error) {
+              console.error("Error getting token after auth change:", error);
+              resolve(null);
+            }
+          } else {
+             // If no user is signed in, resolve null
+            resolve(null);
+          }
+        });
+      }
+    });
+  }, []);
+
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [trustScore, setTrustScore] = useState(0);
   const [ipAddress, setIpAddress] = useState("");
   const [isInsideNetwork, setIsInsideNetwork] = useState(false);
@@ -31,6 +63,8 @@ const NurseDashboard = ({ user, onLogout }) => {
   const [logs, setLogs] = useState([]);
   const [lastLogin, setLastLogin] = useState("");
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [accessExpiryTime, setAccessExpiryTime] = useState(null);
 
   // Helper to remove leading emoji from backend messages
   const cleanToastMessage = (msg) => {
@@ -44,9 +78,7 @@ const NurseDashboard = ({ user, onLogout }) => {
   const fetchTrustScore = useCallback(async () => {
     if (!user?.name) return;
     try {
-      const res = await axios.get(
-        `http://localhost:5000/trust_score/${user.name}`
-      );
+      const res = await axios.get(`${API_URL}/trust_score/${user.name}`);
       setTrustScore(res.data.trust_score || 0);
     } catch (err) {
       console.error("Error fetching trust score:", err);
@@ -68,21 +100,25 @@ const NurseDashboard = ({ user, onLogout }) => {
   // ✅ Fetch Patients (from all_patients endpoint)
   const fetchPatients = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_URL}/all_patients`);
+      const token = await getFirebaseToken();
+      if (!token) return;
+      const res = await axios.get(`${API_URL}/all_patients`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (res.data.success) setPatients(res.data.patients || []);
     } catch (err) {
       console.error("Error fetching patients:", err);
       setPatients([]);
     }
-  }, []);
+  }, [getFirebaseToken]);
 
   // ✅ Fetch Nurse Access Logs (from NurseAccessLog)
   const fetchAccessLogs = useCallback(async () => {
     if (!user?.name) return;
     try {
-      const res = await axios.get(
-        `http://localhost:5000/nurse_access_logs/${user.name}`
-      );
+      const res = await axios.get(`${API_URL}/nurse_access_logs/${user.name}`);
       if (res.data.success) setLogs(res.data.logs || []);
     } catch (err) {
       console.error("Error fetching access logs:", err);
@@ -132,31 +168,9 @@ const NurseDashboard = ({ user, onLogout }) => {
   // ✅ NOW check user AFTER all hooks
   if (!user || !user.name) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          gap: "1rem",
-        }}
-      >
-        <p style={{ fontSize: "1.2rem", color: "#ef4444" }}>
-          ❌ Session expired or invalid user data
-        </p>
-        <button
-          onClick={() => navigate("/")}
-          style={{
-            padding: "0.75rem 1.5rem",
-            background: "#2563eb",
-            color: "white",
-            border: "none",
-            borderRadius: "0.5rem",
-            cursor: "pointer",
-            fontSize: "1rem",
-          }}
-        >
+      <div className="session-expired-container">
+        <p className="session-expired-text">❌ Session expired or invalid user data</p>
+        <button onClick={() => navigate("/")} className="session-expired-btn">
           Return to Login
         </button>
       </div>
@@ -166,30 +180,66 @@ const NurseDashboard = ({ user, onLogout }) => {
   // ✅ Handle Temporary Access Request (Time-based, no justification)
   const handleAccessRequest = async () => {
     if (!selectedPatient) {
-      setToast({ show: true, message: "Please select a patient first!", type: "warning" });
+      setToast({
+        show: true,
+        message: "Please select a patient first!",
+        type: "warning",
+      });
       setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
       return;
     }
 
     if (!isInsideNetwork) {
-      setToast({ show: true, message: "Temporary Access can only be requested inside the hospital network!", type: "error" });
+      setToast({
+        show: true,
+        message:
+          "Temporary Access can only be requested inside the hospital network!",
+        type: "error",
+      });
       setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
       return;
     }
 
     try {
-      const res = await axios.post(`${API_URL}/request_temp_access`, {
-        name: user.name,
-        role: user.role,
-        patient_name: selectedPatient,
-      });
+      const token = await getFirebaseToken();
+      const res = await axios.post(
+        `${API_URL}/request_temp_access`,
+        {
+          name: user.name,
+          role: user.role,
+          patient_name: selectedPatient,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       let type = res.data.success ? "success" : "error";
-      setToast({ show: true, message: cleanToastMessage(res.data.message), type });
+      setToast({
+        show: true,
+        message: cleanToastMessage(res.data.message),
+        type,
+      });
+
+      // ✅ Update patient data with the sensitive info returned
+      if (res.data.success && res.data.patient_data) {
+        setSelectedPatientData(res.data.patient_data);
+        setAccessGranted(true);
+        // Set expiry time to 30 minutes from now
+        const expiryTime = new Date(Date.now() + 30 * 60 * 1000);
+        setAccessExpiryTime(expiryTime);
+      }
+
       setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
       fetchAccessLogs();
     } catch (error) {
-      setToast({ show: true, message: "Failed to request temporary access.", type: "error" });
+      setToast({
+        show: true,
+        message: "Failed to request temporary access.",
+        type: "error",
+      });
       setTimeout(() => setToast({ show: false, message: "", type: "" }), 4000);
     }
   };
@@ -204,6 +254,8 @@ const NurseDashboard = ({ user, onLogout }) => {
   // ✅ Handle patient selection and store details
   const handleSelectPatient = (patientName) => {
     setSelectedPatient(patientName);
+    setAccessGranted(false);
+    setAccessExpiryTime(null);
     const found = patients.find(
       (p) => (p.name || "").toLowerCase() === (patientName || "").toLowerCase()
     );
@@ -212,18 +264,6 @@ const NurseDashboard = ({ user, onLogout }) => {
 
   return (
     <div className="ehr-layout">
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className={`toast-notification toast-${toast.type}`}>
-          <div className="toast-content">
-            <span>{toast.message}</span>
-          </div>
-          <button className="toast-close" onClick={() => setToast({ ...toast, show: false })}>
-            <FaTimes />
-          </button>
-        </div>
-      )}
-
       {/* Sidebar */}
       <aside className="ehr-sidebar">
         <div className="ehr-sidebar-header">
@@ -267,9 +307,9 @@ const NurseDashboard = ({ user, onLogout }) => {
         </div>
       </aside>
 
-      {/* Main Dashboard */}
+      {/* Main Content */}
       <main className="ehr-main">
-        {/* Header */}
+        {/* Header - Fixed at top */}
         <header className="ehr-header">
           <div className="header-left">
             <h1>Welcome, Nurse {user.name}</h1>
@@ -277,175 +317,61 @@ const NurseDashboard = ({ user, onLogout }) => {
           </div>
 
           <div className="header-right">
-            <div className="ip-display">
-              <FaGlobeAsia className="icon" /> {ipAddress}
+            <div className={`status-badge ${isInsideNetwork ? "network" : "error"}`}>
+              <FaCheckCircle /> {isInsideNetwork ? "In Network" : "Outside Network"}
             </div>
-            <div className="last-login">
-              <FaClock className="icon" /> Last Login:{" "}
-              {lastLogin || "Loading..."}
+            <div className="status-badge ip">
+              <FaGlobeAsia /> {ipAddress}
             </div>
-            <div className="session-indicator">
-              {isInsideNetwork
-                ? "🏥 In Hospital Network"
-                : "🌐 Outside Network"}
-            </div>
+            {lastLogin && (
+              <div className="last-login">
+                <FaClock /> {lastLogin}
+              </div>
+            )}
           </div>
         </header>
 
-        {/* ---------------- DASHBOARD TAB ---------------- */}
-        {activeTab === "dashboard" && (
-          <>
-            {/* Trust Score */}
-            <section className="ehr-section">
-              <h2>Trust Score</h2>
-              <TrustScoreMeter score={trustScore} />
-            </section>
-
-            {/* Patient Selection */}
-            <section className="ehr-section">
-              <h2>Select Patient</h2>
-              <select
-                className="patient-dropdown"
-                value={selectedPatient}
-                onChange={(e) => handleSelectPatient(e.target.value)}
-              >
-                <option value="">-- Select Patient --</option>
-                {patients.map((p, idx) => (
-                  <option key={idx} value={p.name}>
-                    {p.name} ({p.email || "N/A"})
-                  </option>
-                ))}
-              </select>
-
-              {selectedPatientData && (
-                <div className="patient-summary">
-                  <p><strong>Name:</strong> {selectedPatientData.name}</p>
-                  <p><strong>Email:</strong> {selectedPatientData.email || "N/A"}</p>
-                  <p><strong>Age:</strong> {selectedPatientData.age || "—"}</p>
-                  <p><strong>Gender:</strong> {selectedPatientData.gender || "—"}</p>
-                </div>
-              )}
-            </section>
-
-            {/* Temporary Access */}
-            <section className="ehr-section">
-              <h2>Temporary Access Request</h2>
-              <div
-                className={`nurse-access-card ${
-                  !isInsideNetwork ? "disabled-card" : ""
-                }`}
-              >
-                <p>
-                  Request short-term patient data access (valid for 30 minutes).
-                  {!isInsideNetwork && (
-                    <span
-                      style={{
-                        color: "red",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {" "}
-                      Disabled outside hospital network
-                    </span>
-                  )}
-                </p>
-                <button
-                  className="btn btn-green"
-                  onClick={handleAccessRequest}
-                  disabled={!isInsideNetwork}
-                >
-                  <FaKey /> Request Temporary Access
-                </button>
-              </div>
-            </section>
-          </>
-        )}
-
-        {/* ---------------- PATIENTS TAB ---------------- */}
-        {activeTab === "patients" && (
-          <section className="ehr-section">
-            <h2>📋 Patients</h2>
-            <div className="log-table-wrapper">
-              <table className="log-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Age</th>
-                    <th>Gender</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {patients.length ? (
-                    patients.map((p, idx) => (
-                      <tr key={idx}>
-                        <td>{p.name}</td>
-                        <td>{p.email || "N/A"}</td>
-                        <td>{p.age || "—"}</td>
-                        <td>{p.gender || "—"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" style={{ textAlign: "center", padding: "1rem" }}>
-                        No patients found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+        {/* ============== TOAST NOTIFICATION ============== */}
+        {toast.show && (
+          <div className={`toast-notification toast-${toast.type}`}>
+            <div className="toast-content">
+              <span>{toast.message}</span>
             </div>
-          </section>
+            <button className="toast-close" onClick={() => setToast({ ...toast, show: false })}>
+              <FaTimes />
+            </button>
+          </div>
         )}
 
-        {/* ---------------- ACCESS LOGS TAB ---------------- */}
-        {activeTab === "accessLogs" && (
-          <section className="ehr-section">
-            <h2>
-              <FaClipboardList /> Access History
-            </h2>
-            <div className="log-table-wrapper">
-              <table className="log-table">
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>Patient</th>
-                    <th>Action</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.length ? (
-                    logs.map((log, idx) => (
-                      <tr key={idx}>
-                        <td>{log.timestamp}</td>
-                        <td>{log.patient_name}</td>
-                        <td>{log.action}</td>
-                        <td
-                          className={
-                            log.status === "Granted"
-                              ? "status-granted"
-                              : log.status === "Denied"
-                              ? "status-denied"
-                              : "status-info"
-                          }
-                        >
-                          {log.status}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="4" style={{ textAlign: "center", padding: "1rem" }}>
-                        No access logs found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
+        {/* ============== SCROLLABLE CONTENT WRAPPER ============== */}
+        <div className="ehr-content-wrapper">
+          {/* ------------------ Dashboard TAB ------------------ */}
+          {activeTab === "dashboard" && (
+            <NurseHomeTab 
+              trustScore={trustScore}
+              patients={patients}
+              selectedPatient={selectedPatient}
+              selectedPatientData={selectedPatientData}
+              handleSelectPatient={handleSelectPatient}
+              isInsideNetwork={isInsideNetwork}
+              handleAccessRequest={handleAccessRequest}
+              accessGranted={accessGranted}
+              accessExpiryTime={accessExpiryTime}
+              logs={logs}
+              setActiveTab={setActiveTab}
+            />
+          )}
+
+          {/* ------------------ PATIENTS TAB ------------------ */}
+          {activeTab === "patients" && (
+            <NursePatientsTab patients={patients} />
+          )}
+
+          {/* ------------------ ACCESS LOGS TAB ------------------ */}
+          {activeTab === "accessLogs" && (
+            <NurseAccessLogsTab logs={logs} />
+          )}
+        </div>
       </main>
     </div>
   );

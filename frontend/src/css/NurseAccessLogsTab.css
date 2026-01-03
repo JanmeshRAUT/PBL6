@@ -1,0 +1,181 @@
+/* =========================================
+   NURSE ACCESS LOGS TABLE STYLES
+   ========================================= */
+
+.logs-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 1.5rem;
+}
+
+.logs-tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: white;
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.logs-header-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.logs-header-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--primary-50);
+  color: var(--primary-600);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.logs-header-title h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--slate-800);
+  margin-bottom: 0.25rem;
+}
+.logs-header-title p {
+  color: var(--slate-500);
+  font-size: 0.9rem;
+}
+
+.btn-refresh-logs {
+  background: white;
+  border: 1px solid var(--slate-300);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: var(--slate-700);
+  transition: all 0.2s;
+}
+.btn-refresh-logs:hover {
+  background: var(--slate-50);
+  border-color: var(--primary-400);
+  color: var(--primary-700);
+}
+
+/* Table Container */
+.logs-table-container {
+  flex: 1;
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.logs-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.logs-table thead {
+  background: var(--slate-50);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--slate-200);
+}
+
+.logs-table th {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--slate-500);
+  letter-spacing: 0.05em;
+}
+
+.logs-table tbody tr {
+  border-bottom: 1px solid var(--slate-100);
+  transition: background 0.1s;
+}
+.logs-table tbody tr:hover {
+  background: var(--primary-50);
+}
+
+.logs-table td {
+  padding: 1rem 1.5rem;
+  font-size: 0.9rem;
+  color: var(--slate-700);
+  vertical-align: middle;
+}
+
+/* Cell Styles */
+.log-date { font-weight: 600; color: var(--slate-800); }
+.log-time { font-size: 0.8rem; color: var(--slate-500); margin-top: 2px; }
+
+.log-action-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 500;
+}
+.icon-blue { color: var(--primary-500); }
+.icon-gray { color: var(--slate-400); }
+
+.log-patient-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.patient-icon-circle {
+  width: 32px;
+  height: 32px;
+  background: var(--primary-100);
+  color: var(--primary-600);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-icon { font-size: 0.9rem; }
+
+/* Empty State */
+.logs-empty {
+  padding: 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--slate-400);
+}
+.empty-logs-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}

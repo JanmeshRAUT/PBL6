@@ -1,127 +1,142 @@
 import pandas as pd
 import joblib
+from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-import numpy as np
 
-# ============================================
-# LOAD MAIN JUSTIFICATION DATA
-# ============================================
-df = pd.read_csv("dataset.csv")
-df.columns = ["text", "label"]
+# ===============================
+# 🧠 Model A — Justification Classifier
+# ===============================
+print("\n🔍 Training Model A: Justification Classifier...")
+
+# Load Data (using local path)
+df = pd.read_csv("dataset.csv") 
+# Assuming dataset.csv has no header, or correct columns. 
+# Based on previous file content, it seems it needs column naming:
+if "label" not in df.columns:
+    df.columns = ["text", "label"]
 
 X = df["text"]
 y = df["label"]
 
-# ============================================
-# TRAIN SPLIT
-# ============================================
+# Train/Test Split
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.20, random_state=42, stratify=y)
+    X, y,
+    test_size=0.2,
+    stratify=y,
+    random_state=42
+)
 
-# ============================================
-# MODEL 1 — OPTIMIZED SVM FOR JUSTIFICATION
-# ============================================
+# Pipeline
 justification_clf = Pipeline([
     ("tfidf", TfidfVectorizer(
         lowercase=True,
         stop_words="english",
         ngram_range=(1, 3),
-        max_features=28000,
-        min_df=1,
-        max_df=0.97
+        max_features=30000,
+        min_df=2,
+        max_df=0.95,
+        token_pattern=r"(?u)\b[a-zA-Z][a-zA-Z]+\b"  # 🔐 ignore numbers
     )),
     ("clf", LinearSVC(C=1.2))
 ])
 
 justification_clf.fit(X_train, y_train)
 
-print("\n📊 Justification Model Accuracy:", justification_clf.score(X_test, y_test))
+print("📊 Justification Accuracy:", justification_clf.score(X_test, y_test))
+joblib.dump(justification_clf, "justification_clf.pkl")
+print("✅ Saved: justification_clf.pkl")
 
-# ============================================
-# BUILD MEDICAL INTENT SYNTHETIC DATA
-# ============================================
+
+# ===============================
+# 🧠 Model B — Medical Intent Classifier
+# ===============================
+print("\n🔍 Training Model B: Medical Intent Classifier...")
+
 intent_samples = [
-    ("reviewing CT results for internal bleeding", "medical"),
-    ("stabilizing patient vitals, need access history", "medical"),
-    ("checking lab results before prescribing medication", "medical"),
-    ("system login issue, need to update password", "admin"),
-    ("audit review for compliance verification", "admin"),
-    ("updating shift schedule", "admin"),
-    ("checking info out of curiosity", "non_medical"),
-    ("random lookup no medical reason", "non_medical"),
-    ("trying to see unrelated records", "non_medical")
+    ("reviewing CT scan for diagnosis confirmation", "medical"),
+    ("evaluating imaging results for patient assessment", "medical"),
+    ("stabilizing patient vitals in critical care", "medical"),
+    ("monitoring laboratory trends for treatment planning", "medical"),
+    ("cross-referencing medication history", "medical"), 
+
+    ("updating duty roster", "admin"),
+    ("requesting password reset", "admin"),
+    ("reviewing audit compliance logs", "admin"),
+    ("system maintenance check", "admin"),
+
+    ("checking records out of curiosity", "non_medical"),
+    ("random patient lookup", "non_medical"),
+    ("testing access permissions", "non_medical"),
+    ("browsing patient filenames", "non_medical")
 ]
 
-intent_df = pd.DataFrame(intent_samples * 80, columns=["text", "label"])
+intent_df = pd.DataFrame(intent_samples * 100, columns=["text", "label"])
 
 X2 = intent_df["text"]
 y2 = intent_df["label"]
 
 X2_train, X2_test, y2_train, y2_test = train_test_split(
-    X2, y2, test_size=0.20, random_state=42, stratify=y2)
+    X2, y2,
+    test_size=0.2,
+    stratify=y2,
+    random_state=42
+)
 
-# ============================================
-# MODEL 2 — MEDICAL INTENT CLASSIFIER
-# ============================================
 intent_clf = Pipeline([
     ("tfidf", TfidfVectorizer(
         lowercase=True,
         stop_words="english",
         ngram_range=(1, 2),
-        max_features=9000
+        max_features=10000,
+        token_pattern=r"(?u)\b[a-zA-Z][a-zA-Z]+\b"
     )),
-    ("clf", LogisticRegression(max_iter=250))
+    ("clf", LogisticRegression(max_iter=300))
 ])
 
 intent_clf.fit(X2_train, y2_train)
 
-print("\n📊 Medical Intent Model Accuracy:", intent_clf.score(X2_test, y2_test))
-
 # ============================================
-# COMBINED HYBRID MODEL OBJECT
+# SAVE MODELS WITH VERSIONING
 # ============================================
-class HybridAccessModel:
-    def __init__(self, justification_model, intent_model):
-        self.just_model = justification_model
-        self.intent_model = intent_model
+import json
+import os
 
-    def predict(self, text):
-        if isinstance(text, list):
-            return [self._predict_single(t) for t in text]
-        return self._predict_single(text)
+CONFIG_PATH = "ml_model_config.json"
 
-    def _predict_single(self, text):
-        j = self.just_model.predict([text])[0]
-        m = self.intent_model.predict([text])[0]
+# Load or Initialize Config
+if os.path.exists(CONFIG_PATH):
+    with open(CONFIG_PATH, "r") as f:
+        config = json.load(f)
+else:
+    config = {"active_version": "v0", "history": []}
 
-        # --- DECISION ENGINE ---
-        if j == "emergency" and m == "medical":
-            return "emergency_allow"
-        if j == "restricted" and m == "medical":
-            return "restricted_allow"
-        if j == "invalid":
-            return "deny"
-        return "flag_review"
+# Determine New Version
+last_version = config["active_version"]
+version_num = int(last_version.replace("v", "")) + 1
+new_version = f"v{version_num}"
 
-# ============================================
-# SAVE COMPONENT MODELS (instead of wrapper class)
-# ============================================
-joblib.dump(justification_clf, "justification_clf.pkl")
-joblib.dump(intent_clf, "intent_clf.pkl")
-print("\n✅ Saved: justification_clf.pkl")
-print("✅ Saved: intent_clf.pkl")
+print(f"\n📦 Versioning: {last_version} ➝ {new_version}")
 
-# Also save the old hybrid model for backward compatibility
-# (but this may cause issues with gunicorn)
-try:
-    hybrid_model = HybridAccessModel(justification_clf, intent_clf)
-    joblib.dump(hybrid_model, "hybrid_access_model.pkl")
-    print("✅ Saved: hybrid_access_model.pkl (for backward compatibility)")
-except Exception as e:
-    print(f"⚠️ Could not save hybrid model: {e}")
+# Save Models with Version Suffix
+just_filename = f"justification_clf_{new_version}.pkl"
+intent_filename = f"intent_clf_{new_version}.pkl"
 
-print("\n🎉 MODELS READY FOR DEPLOYMENT!")
+joblib.dump(justification_clf, just_filename)
+joblib.dump(intent_clf, intent_filename)
+
+print(f"✅ Saved: {just_filename}")
+print(f"✅ Saved: {intent_filename}")
+
+# Update Config
+config["active_version"] = new_version
+config["history"].append(new_version)
+
+with open(CONFIG_PATH, "w") as f:
+    json.dump(config, f, indent=4)
+
+print(f"📝 Config updated: Active version is now {new_version}")
+
+print("\n🎉 ALL MODELS TRAINED & SAVED SUCCESSFULLY!")

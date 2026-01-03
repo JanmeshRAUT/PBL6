@@ -2,8 +2,13 @@ import React, { useState, useCallback, useEffect } from "react";
 import axios from "axios";
 import { API_URL } from "../api";
 import { useNavigate } from "react-router-dom";
-import TrustScoreMeter from "./TrustScoreMeter";
 import PatientFormModal from "./PatientFormModal";
+import DoctorHomeTab from "./doctor_tabs/DoctorHomeTab";
+import DoctorPatientsTab from "./doctor_tabs/DoctorPatientsTab";
+import DoctorAccessLogsTab from "./doctor_tabs/DoctorAccessLogsTab";
+import DoctorPermissionsTab from "./doctor_tabs/DoctorPermissionsTab";
+import DoctorAlertsTab from "./doctor_tabs/DoctorAlertsTab";
+import { getAuth } from "firebase/auth";
 import {
   FaHospitalUser,
   FaUserMd,
@@ -14,19 +19,45 @@ import {
   FaExclamationTriangle,
   FaGlobeAsia,
   FaClock,
-  FaListAlt,
   FaFilePdf,
   FaTimes,
   FaCheckCircle,
   FaSpinner,
-  FaSync,
 } from "react-icons/fa";
 import "../css/Doctor.css";
-import "../css/UserManagement.css";
-import "../css/Notifications.css"; // ✅ Already added - ensures toast styles are loaded
+import "../css/Notifications.css";
+import "../css/MedicalReport.css"; 
 
 const DoctorDashboard = ({ user, onLogout }) => {
   const navigate = useNavigate();
+
+  // ✅ Helper: Get Firebase ID token with race-condition fix
+  const getFirebaseToken = useCallback(async () => {
+    return new Promise((resolve) => {
+      const auth = getAuth();
+      if (auth.currentUser) {
+        auth.currentUser.getIdToken().then(resolve).catch((err) => {
+            console.error("Error getting immediate token:", err);
+            resolve(null);
+        });
+      } else {
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+          unsubscribe();
+          if (user) {
+            try {
+              const token = await user.getIdToken();
+              resolve(token);
+            } catch (error) {
+              console.error("Error getting token after auth change:", error);
+              resolve(null);
+            }
+          } else {
+            resolve(null);
+          }
+        });
+      }
+    });
+  }, []);
 
   // ✅ ALL HOOKS MUST BE AT THE TOP
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -48,7 +79,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
     treatment: "",
     notes: "",
   });
-  const [recordLoading, setRecordLoading] = useState(false);
 
   // ✅ New: Enhanced loading and error states
   const [loading, setLoading] = useState({
@@ -57,6 +87,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     logs: false,  
     access: false,
     myPatients: false,
+    update: false, // ✅ Added for record updates
   });
   const [error, setError] = useState(null);
   const [showPDFModal, setShowPDFModal] = useState(false);
@@ -84,15 +115,25 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   }, []);
 
-  // ✅ Improved Fetch Trust Score with loading state
+  // ✅ Improved Fetch Trust Score - Only updates when value changes
   const fetchTrustScore = useCallback(async () => {
     if (!user?.name) return;
     try {
       setLoading((prev) => ({ ...prev, trust: true }));
       const res = await axios.get(
-        `http://localhost:5000/trust_score/${user.name}`
+        `${API_URL}/trust_score/${user.name}`
       );
-      setTrustScore(res.data.trust_score || 0);
+      const newScore = res.data.trust_score || 0;
+      
+      // ✅ Only update state if trust score actually changed
+      setTrustScore((prevScore) => {
+        if (prevScore !== newScore) {
+          console.log(`🔄 Trust score updated: ${prevScore} → ${newScore}`);
+          return newScore;
+        }
+        return prevScore;
+      });
+      
       setError(null);
     } catch (err) {
       console.error("Error fetching trust score:", err);
@@ -106,7 +147,21 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const fetchAllPatients = useCallback(async () => {
     try {
       setLoading((prev) => ({ ...prev, patients: true }));
-      const res = await axios.get(`${API_URL}/all_patients`);
+      
+      // Get Firebase ID token
+      const token = await getFirebaseToken();
+      
+      if (!token) {
+        console.warn("Skipping patient fetch: No valid token available");
+        setLoading(prev => ({ ...prev, patients: false }));
+        return;
+      }
+
+      const res = await axios.get(`${API_URL}/all_patients`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       if (res.data.success) {
         setAllPatients(res.data.patients || []);
         setError(null);
@@ -117,7 +172,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     } finally {
       setLoading((prev) => ({ ...prev, patients: false }));
     }
-  }, []);
+  }, [getFirebaseToken]);
 
   // ✅ Improved Fetch Access Logs - Uses new DoctorAccessLog collection
   const fetchAccessLogs = useCallback(async () => {
@@ -126,7 +181,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
       setLoading((prev) => ({ ...prev, logs: true }));
       // ✅ NEW: Use dedicated DoctorAccessLog endpoint
       const res = await axios.get(
-        `http://localhost:5000/doctor_access_logs/${user.name}`
+        `${API_URL}/doctor_access_logs/${user.name}`
       );
       if (res.data.success) {
         setLogs(res.data.logs || []);
@@ -166,7 +221,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     try {
       setLoading((prev) => ({ ...prev, myPatients: true }));
       const res = await axios.get(
-        `http://localhost:5000/doctor_patients/${user.name}`
+        `${API_URL}/doctor_patients/${user.name}`
       );
       if (res.data.success) {
         setMyPatients(res.data.patients || []);
@@ -180,7 +235,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
   }, [user?.name]);
 
-  // ✅ Lifecycle Setup
+  // ✅ Lifecycle Setup - Removed automatic polling
   useEffect(() => {
     if (!user?.name) return;
 
@@ -191,9 +246,8 @@ const DoctorDashboard = ({ user, onLogout }) => {
     fetchAccessLogs();
     fetchMyPatients();
 
-    // ✅ CHANGED: Increase interval to 30 seconds to reduce server load
-    const interval = setInterval(fetchTrustScore, 30000);
-    return () => clearInterval(interval);
+    // ✅ REMOVED: Automatic polling interval - trust score now updates only on-demand
+    // Trust score will be fetched after actions that affect it (access requests, etc.)
   }, [
     user?.name,
     fetchTrustScore,
@@ -207,30 +261,13 @@ const DoctorDashboard = ({ user, onLogout }) => {
   // ✅ NOW do the safety check AFTER all hooks
   if (!user || !user.name) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          gap: "1rem",
-        }}
-      >
-        <p style={{ fontSize: "1.2rem", color: "#ef4444" }}>
+      <div className="session-expired-container">
+        <p className="session-expired-text">
           ❌ Session expired or invalid user data
         </p>
         <button
           onClick={() => navigate("/")}
-          style={{
-            padding: "0.75rem 1.5rem",
-            background: "#2563eb",
-            color: "white",
-            border: "none",
-            borderRadius: "0.5rem",
-            cursor: "pointer",
-            fontSize: "1rem",
-          }}
+          className="session-expired-btn"
         >
           Return to Login
         </button>
@@ -261,21 +298,26 @@ const DoctorDashboard = ({ user, onLogout }) => {
       setLoading((prev) => ({ ...prev, access: true }));
       setError(null);
 
-      const res = await axios.post(`http://localhost:5000/${type}_access`, {
+      const token = await getFirebaseToken();
+      const res = await axios.post(`${API_URL}/${type}_access`, {
         name: user.name,
         role: user.role,
         patient_name: selectedPatient,
         justification: reason,
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       });
 
       if (res.data.success) {
         setAccessResponse(res.data);
         showToast(cleanToastMessage(res.data.message), "success");
         
-        // Auto-show PDF modal if patient data available
-        if (res.data.patient_data && Object.keys(res.data.patient_data).length > 0) {
-          setTimeout(() => setShowPDFModal(true), 500);
-        }
+        // Auto-show PDF modal DISABLE as per user request
+        // if (res.data.patient_data && Object.keys(res.data.patient_data).length > 0) {
+        //   setTimeout(() => setShowPDFModal(true), 500);
+        // }
       } else {
         showToast(cleanToastMessage(res.data.message), "error");
       }
@@ -316,13 +358,27 @@ const DoctorDashboard = ({ user, onLogout }) => {
   const resolvePdfLink = (link) => {
     if (!link) return "";
     if (link.startsWith("http")) return link;
-    return `http://localhost:5000${link.startsWith("/") ? link : `/${link}`}`;
+    // Remove leading slash to prevent double slash if API_URL ends with one
+    const cleanLink = link.startsWith("/") ? link.substring(1) : link;
+    return `${API_URL}/${cleanLink}`;
   };
 
-  // ✅ Handle PDF Download
-  const handleDownloadPDF = () => {
+  // ✅ Handle PDF Download (Secure)
+  const handleDownloadPDF = async () => {
     if (accessResponse?.pdf_link) {
-      window.open(resolvePdfLink(accessResponse.pdf_link), "_blank");
+      try {
+        const token = await getFirebaseToken();
+        const link = resolvePdfLink(accessResponse.pdf_link);
+        
+        // Append token to URL
+        const urlObj = new URL(link);
+        urlObj.searchParams.append("token", token);
+        
+        window.open(urlObj.toString(), "_blank");
+      } catch (error) {
+        console.error("Access token error for PDF:", error);
+        alert("Authentication failed for PDF download.");
+      }
     } else {
       alert("No PDF report available for this patient.");
     }
@@ -352,8 +408,14 @@ const DoctorDashboard = ({ user, onLogout }) => {
     
     // Fetch patient details
     try {
+      const token = await getFirebaseToken();
       const res = await axios.get(
-        `http://localhost:5000/get_patient/${patientName.toLowerCase()}`
+        `${API_URL}/get_patient/${patientName.toLowerCase()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       );
       if (res.data.success && res.data.patient) {
         setSelectedPatientData(res.data.patient);
@@ -440,9 +502,10 @@ const DoctorDashboard = ({ user, onLogout }) => {
     }
 
     try {
-      setRecordLoading(true);
-      
-      // ✅ CORRECT: POST to /update_patient (no patient name in URL)
+    setLoading(prev => ({ ...prev, update: true }));
+    
+    // ✅ CORRECT: POST to /update_patient (no patient name in URL)
+      const token = await getFirebaseToken();
       const res = await axios.post(`${API_URL}/update_patient`, {
         patient_name: selectedPatient,
         updated_by: user.name,
@@ -450,6 +513,10 @@ const DoctorDashboard = ({ user, onLogout }) => {
           diagnosis: recordForm.diagnosis.trim(),
           treatment: recordForm.treatment.trim(),
           notes: recordForm.notes.trim(),
+        }
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
       });
 
@@ -471,27 +538,10 @@ const DoctorDashboard = ({ user, onLogout }) => {
       console.error("Update error:", error);
       const errorMsg = error.response?.data?.message || "Failed to update patient records";
       showToast("❌ " + errorMsg, "error");
-    } finally {
-      setRecordLoading(false);
-    }
-  };
-
-  const fieldOrder = [
-    "name",
-    "age",
-    "gender",
-    "email",
-    "diagnosis",
-    "treatment",
-    "notes",
-    "last_visit",
-    "last_updated_at",
-    "last_updated_by",
-  ];
-  const formatLabel = (key) =>
-    key
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+  } finally {
+    setLoading(prev => ({ ...prev, update: false }));
+  }
+};
 
   return (
     <div className="ehr-layout">
@@ -525,10 +575,18 @@ const DoctorDashboard = ({ user, onLogout }) => {
             >
               <FaClipboardList /> Access Logs ({logs.length})
             </li>
-            <li title="Manage your access permissions">
+            <li 
+              className={activeTab === "permissions" ? "active" : ""}
+              onClick={() => setActiveTab("permissions")}
+              title="View your access permissions"
+            >
               <FaLock /> Permissions
             </li>
-            <li title="View system alerts and notifications">
+            <li 
+              className={activeTab === "alerts" ? "active" : ""}
+              onClick={() => setActiveTab("alerts")}
+              title="View system alerts and notifications"
+            >
               <FaExclamationTriangle /> Alerts
             </li>
           </ul>
@@ -543,7 +601,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
 
       {/* Main Content */}
       <main className="ehr-main">
-        {/* Header */}
+        {/* Header - Fixed at top */}
         <header className="ehr-header">
           <div className="header-left">
             <h1>Welcome, Dr. {user.name}</h1>
@@ -551,16 +609,17 @@ const DoctorDashboard = ({ user, onLogout }) => {
           </div>
 
           <div className="header-right">
-            <div className="ip-display">
-              <FaGlobeAsia className="icon" /> <span>{ipAddress}</span>
+            <div className="status-badge network">
+              <FaCheckCircle /> {isInsideNetwork ? "In Network" : "External"}
             </div>
-            <div className="last-login">
-              <FaClock className="icon" />{" "}
-              <span>Last Login: {lastLogin || "Loading..."}</span>
+            <div className="status-badge ip">
+              <FaGlobeAsia /> {ipAddress}
             </div>
-            <div className="session-indicator">
-              {isInsideNetwork ? "🏥 In Hospital Network" : "🌐 External Access"}
-            </div>
+            {lastLogin && (
+              <div className="last-login">
+                <FaClock /> {lastLogin}
+              </div>
+            )}
           </div>
         </header>
 
@@ -568,7 +627,6 @@ const DoctorDashboard = ({ user, onLogout }) => {
         {toast.show && (
           <div className={`toast-notification toast-${toast.type}`}>
             <div className="toast-content">
-              {/* Only show message, icon is handled by CSS */}
               <span>{toast.message}</span>
             </div>
             <button className="toast-close" onClick={() => setToast({ ...toast, show: false })}>
@@ -587,215 +645,26 @@ const DoctorDashboard = ({ user, onLogout }) => {
           </div>
         )}
 
+        {/* ============== SCROLLABLE CONTENT WRAPPER ============== */}
+        <div className="ehr-content-wrapper">
         {/* ------------------ Dashboard TAB ------------------ */}
         {activeTab === "dashboard" && (
-          <>
-            {/* ============== TRUST SCORE SECTION ============== */}
-            <section className="ehr-section">
-              <h2>🛡️ Trust Score Analysis</h2>
-              <div className="trust-section">
-                {loading.trust ? (
-                  <div className="loading-spinner">
-                    <FaSpinner className="spin-icon" /> Loading trust score...
-                  </div>
-                ) : (
-                  <TrustScoreMeter score={trustScore} />
-                )}
-              </div>
-            </section>
-
-            {/* ============== PATIENT SELECTION ============== */}
-            <section className="ehr-section">
-              <div className="section-header">
-                <h2>🩺 Select Patient (Created by Admin)</h2>
-                <button
-                  className="btn btn-green btn-sm"
-                  onClick={() => setShowPatientForm(true)}
-                  title="Add a new patient to the system"
-                >
-                  ➕ Add New Patient
-                </button>
-              </div>
-              {loading.patients ? (
-                <div className="loading-spinner">
-                  <FaSpinner className="spin-icon" /> Loading patients...
-                </div>
-              ) : (
-                <>
-                  <select
-                    className="patient-dropdown"
-                    value={selectedPatient}
-                    onChange={(e) => handleSelectPatient(e.target.value)}
-                  >
-                    <option value="">-- Select a Patient --</option>
-                    {allPatients.map((p, idx) => (
-                      <option key={idx} value={p.name || p.patient_name}>
-                        {p.name || p.patient_name} ({p.email || "N/A"})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="section-hint">
-                    💡 Select an existing patient to update their records, or click "Add New Patient" to create a new patient record.
-                  </p>
-                  {/* ✅ NEW: Quick action to edit selected patient in My Patients tab */}
-                  <button
-                    className="btn btn-blue btn-sm"
-                    style={{ marginTop: "0.5rem", maxWidth: "240px" }}
-                    onClick={() => selectedPatient && setActiveTab("patients")}
-                    disabled={!selectedPatient}
-                  >
-                    <FaUserMd /> Edit Selected in My Patients
-                  </button>
-                </>
-              )}
-            </section>
-
-            {/* ============== PATIENT RECORD FORM (moved to My Patients) ============== */}
-            {selectedPatient && selectedPatientData && activeTab === "dashboard" && (
-              <section className="ehr-section">
-                <div className="info-banner info-banner-warning">
-                  Editing of patient records is available only from the "My Patients" tab.
-                </div>
-              </section>
-            )}
-
-            {/* ============== ACCESS CONTROL ============== */}
-            <section className="ehr-section">
-              <h2>🔐 Access Control Panel</h2>
-              <div className="ehr-access-grid">
-                <div className="ehr-access-card green">
-                  <div className="card-icon">🏥</div>
-                  <h3>Normal Access</h3>
-                  <p>Standard access within hospital network. Suitable for routine patient care and record reviews.</p>
-                  <button
-                    className="btn btn-green"
-                    onClick={() => handleAccessRequest("normal")}
-                    disabled={loading.access || !selectedPatient}
-                  >
-                    {loading.access ? (
-                      <>
-                        <FaSpinner className="spin-icon" /> Processing...
-                      </>
-                    ) : (
-                      <>
-                        <FaCheckCircle /> Request Access
-                      </>
-                    )}
-                  </button>
-                  {!selectedPatient && (
-                    <p className="card-hint">Select a patient first</p>
-                  )}
-                </div>
-
-                <div
-                  className={`ehr-access-card blue ${
-                    isInsideNetwork ? "disabled-card" : ""
-                  }`}
-                >
-                  <div className="card-icon">🔒</div>
-                  <h3>Restricted Access</h3>
-                  <p>
-                    For external consultations, research, or off-network access. Requires detailed justification.
-                    {isInsideNetwork && (
-                      <span className="card-warning">
-                        {" "}Available only from outside network
-                      </span>
-                    )}
-                  </p>
-                  <button
-                    className="btn btn-blue"
-                    onClick={() => handleAccessRequest("restricted")}
-                    disabled={isInsideNetwork || loading.access || !selectedPatient}
-                  >
-                    {loading.access ? (
-                      <>
-                        <FaSpinner className="spin-icon" /> Processing...
-                      </>
-                    ) : (
-                      <>
-                        <FaLock /> Request Access
-                      </>
-                    )}
-                  </button>
-                  {isInsideNetwork && (
-                    <p className="card-hint">Not available in-network</p>
-                  )}
-                </div>
-
-                <div className="ehr-access-card red">
-                  <div className="card-icon">🚨</div>
-                  <h3>Emergency Access</h3>
-                  <p>Break-glass access for critical, life-threatening situations only. All emergency accesses are logged and reviewed by security.</p>
-                  <button
-                    className="btn btn-emergency"
-                    onClick={() => handleAccessRequest("emergency")}
-                    disabled={loading.access || !selectedPatient}
-                  >
-                    {loading.access ? (
-                      <>
-                        <FaSpinner className="spin-icon" /> Processing...
-                      </>
-                    ) : (
-                      <>
-                        🚨 Break Glass Access
-                      </>
-                    )}
-                  </button>
-                  {!selectedPatient && (
-                    <p className="card-hint">Select a patient first</p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* ============== PATIENT DATA DISPLAY ============== */}
-            {accessResponse?.patient_data &&
-              Object.keys(accessResponse.patient_data).length > 0 && (
-                <section className="ehr-section patient-data-section">
-                  <div className="section-header">
-                    <h2>📋 Patient Medical Record</h2>
-                    <div className="header-actions">
-                      <button
-                        className="btn btn-blue btn-sm"
-                        onClick={() => setShowPDFModal(true)}
-                      >
-                        <FaFilePdf /> View Patient Report
-                      </button>
-                      <button
-                        className="btn btn-gray btn-sm"
-                        onClick={handleDownloadPDF}
-                      >
-                        <FaFilePdf /> Download Patient Report
-                      </button>
-                    </div>
-                  </div>
-                  <div className="patient-info-grid">
-                    {fieldOrder
-                      .filter((k) => accessResponse.patient_data[k])
-                      .map((key) => (
-                        <div key={key} className="patient-info-item">
-                          <label>{formatLabel(key)}</label>
-                          <span>{accessResponse.patient_data[key]}</span>
-                        </div>
-                      ))}
-                    {Object.entries(accessResponse.patient_data)
-                      .filter(([k]) => !fieldOrder.includes(k))
-                      .map(([k, v]) => (
-                        <div key={k} className="patient-info-item">
-                          <label>{formatLabel(k)}</label>
-                          <span>{v}</span>
-                        </div>
-                      ))}
-                  </div>
-                  <div className="access-timestamp">
-                    <FaClock /> Accessed on {new Date().toLocaleString()}
-                  </div>
-                  <p style={{ marginTop: "1.5rem", color: "#64748b", fontSize: "0.9rem", fontStyle: "italic" }}>
-                    📌 Full report and PDF are available in this Dashboard after access is granted. Use the "My Patients" tab (in-network) to edit medical records.
-                  </p>
-                </section>
-              )}
-          </>
+          <DoctorHomeTab 
+            trustScore={trustScore}
+            loading={loading}
+            logs={logs}
+            setActiveTab={setActiveTab}
+            allPatients={allPatients}
+            selectedPatient={selectedPatient}
+            handleSelectPatient={handleSelectPatient}
+            setShowPatientForm={setShowPatientForm}
+            isInsideNetwork={isInsideNetwork}
+            handleAccessRequest={handleAccessRequest}
+            accessResponse={accessResponse}
+            setShowPDFModal={setShowPDFModal}
+            handleDownloadPDF={handleDownloadPDF}
+            ipAddress={ipAddress}
+          />
         )}
 
         {/* ------------------ MY PATIENTS TAB ------------------ */}
@@ -807,231 +676,53 @@ const DoctorDashboard = ({ user, onLogout }) => {
                 <div className="error-banner" style={{ marginBottom: 0 }}>
                   <FaExclamationTriangle /> 🚫 "My Patients" is only available inside the hospital network for security purposes.
                 </div>
-                <div style={{ padding: "3rem 2rem", textAlign: "center", color: "#64748b" }}>
-                  <p style={{ fontSize: "1.1rem", fontWeight: "600", marginBottom: "1rem" }}>
+                <div className="restricted-access-container">
+                  <p className="restricted-access-title">
                     Access Restricted
                   </p>
                   <p>
                     You are currently accessing from outside the hospital network ({ipAddress}).
                   </p>
-                  <p style={{ marginTop: "1rem", fontSize: "0.95rem" }}>
+                  <p className="restricted-access-text">
                     To view and manage your patient records, please access from within the hospital network.
                   </p>
                 </div>
               </section>
             ) : (
-              <section className="ehr-section">
-                <div className="section-header">
-                  <h2>
-                    <FaUserInjured /> My Patient Records ({myPatients.length})
-                  </h2>
-                  <button
-                    className="btn btn-blue btn-sm"
-                    onClick={fetchMyPatients}
-                    disabled={loading.myPatients}
-                  >
-                    <FaSync /> Refresh
-                  </button>
-                </div>
-
-                <p className="section-description">
-                  Add or update medical data for your patients (reports are viewable from Dashboard after access).
-                </p>
-
-                {loading.myPatients ? (
-                  <div className="loading-spinner">
-                    <FaSpinner className="spin-icon" /> Loading...
-                  </div>
-                ) : myPatients.length > 0 ? (
-                  <div className="log-table-wrapper">
-                    <table className="log-table">
-                      <thead>
-                        <tr>
-                          <th>Patient Name</th>
-                          <th>Email Address</th>
-                          <th>Last Updated</th>
-                          <th>Updated By</th>
-                          <th>Edit</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {myPatients.map((patient, idx) => (
-                          <tr key={idx}>
-                            <td className="patient-name">
-                              <strong>{patient.name || "Unknown"}</strong>
-                            </td>
-                            <td>{patient.email || "N/A"}</td>
-                            <td>{patient.last_updated_at ? new Date(patient.last_updated_at).toLocaleString() : "N/A"}</td>
-                            <td>{patient.last_updated_by || "—"}</td>
-                            <td>
-                              <button
-                                className="btn-patient-action"
-                                onClick={() => {
-                                  handleSelectPatient(patient.name);
-                                  setActiveTab("patients");
-                                }}
-                                style={{ padding: "0.5rem 1rem", fontSize: "0.85rem" }}
-                              >
-                                <FaUserMd /> Edit
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="empty-state">
-                    <FaUserInjured className="empty-icon" />
-                    <h3>No Patient Records Updated Yet</h3>
-                    <p>Select a patient from the dashboard and update their medical records to see them here.</p>
-                  </div>
-                )}
-
-                {/* ============== RECORD FORM INSIDE MY PATIENTS ============== */}
-                {selectedPatient && selectedPatientData && (
-                  <div style={{ marginTop: "1.5rem" }}>
-                    <h3 style={{ marginBottom: "1rem" }}>📋 Update Patient Medical Records</h3>
-                    <div className="patient-info-display">
-                      <div className="info-box">
-                        <label>Patient Name:</label>
-                        <span>{selectedPatientData.name || selectedPatient}</span>
-                      </div>
-                      <div className="info-box">
-                        <label>Age:</label>
-                        <span>{selectedPatientData.age || "Not specified"} {selectedPatientData.age ? "years" : ""}</span>
-                      </div>
-                      <div className="info-box">
-                        <label>Gender:</label>
-                        <span>{selectedPatientData.gender || "Not specified"}</span>
-                      </div>
-                      <div className="info-box">
-                        <label>Email:</label>
-                        <span>{selectedPatientData.email || "Not specified"}</span>
-                      </div>
-                    </div>
-
-                    {!selectedPatientData.diagnosis && (
-                      <div className="info-banner info-banner-new">
-                        ℹ️ This patient has no medical records yet. Fill in the details below to create their first record.
-                      </div>
-                    )}
-
-                    <form onSubmit={handleUpdateRecords} className="record-form">
-                      <div className="form-group">
-                        <label>🏥 Diagnosis *</label>
-                        <input
-                          type="text"
-                          placeholder="e.g., Hypertension, Type-2 Diabetes"
-                          value={recordForm.diagnosis}
-                          onChange={(e) => setRecordForm({ ...recordForm, diagnosis: e.target.value })}
-                          required
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label>💊 Treatment Plan</label>
-                        <textarea
-                          rows="3"
-                          placeholder="e.g., Amlodipine 5mg daily, Regular exercise..."
-                          value={recordForm.treatment}
-                          onChange={(e) => setRecordForm({ ...recordForm, treatment: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label>📝 Clinical Notes</label>
-                        <textarea
-                          rows="3"
-                          placeholder="Additional observations, follow-up recommendations..."
-                          value={recordForm.notes}
-                          onChange={(e) => setRecordForm({ ...recordForm, notes: e.target.value })}
-                        />
-                      </div>
-
-                      <button type="submit" className="btn btn-blue" disabled={recordLoading}>
-                        {recordLoading ? <><FaSpinner className="spin-icon" /> Saving...</> : <>✅ {selectedPatientData.diagnosis ? "Update" : "Save"} Patient Records</>}
-                      </button>
-                    </form>
-                  </div>
-                )}
-              </section>
+            <DoctorPatientsTab 
+              myPatients={myPatients}
+              loading={loading}
+              selectedPatient={selectedPatient}
+              selectedPatientData={selectedPatientData}
+              recordForm={recordForm}
+              setRecordForm={setRecordForm}
+              handleSelectPatient={handleSelectPatient}
+              handleUpdateRecords={handleUpdateRecords}
+              fetchMyPatients={fetchMyPatients}
+              setSelectedPatient={setSelectedPatient}
+              isInsideNetwork={isInsideNetwork}
+            />
             )}
           </>
         )}
 
         {/* ------------------ Access Logs TAB ------------------ */}
         {activeTab === "accessLogs" && (
-          <section className="ehr-section">
-            <div className="section-header">
-              <h2>
-                <FaListAlt /> My Access History
-              </h2>
-              <button
-                className="btn btn-blue btn-sm"
-                onClick={fetchAccessLogs}
-                disabled={loading.logs}
-              >
-                {loading.logs ? <FaSpinner className="spin-icon" /> : <FaSync />}
-                {" "}Refresh
-              </button>
-            </div>
-            {loading.logs ? (
-              <div className="loading-spinner">
-                <FaSpinner className="spin-icon" /> Loading access history...
-              </div>
-            ) : (
-              <div className="log-table-wrapper">
-                <table className="log-table">
-                  <thead>
-                    <tr>
-                      <th>Timestamp</th>
-                      <th>Action</th>
-                      <th>Patient</th>
-                      <th>Justification</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.length > 0 ? (
-                      logs.map((log, idx) => (
-                        <tr key={idx}>
-                          <td>{new Date(log.timestamp).toLocaleString()}</td>
-                          <td>{log.action || log.type || "—"}</td>
-                          <td>{log.patient_name || "N/A"}</td>
-                          <td>{log.justification?.slice(0, 50) || "—"}</td>
-                          <td
-                            className={
-                              log.status === "Granted" || log.status === "Approved"
-                                ? "status-granted"
-                                : log.status === "Denied"
-                                ? "status-denied"
-                                : "status-info"
-                            }
-                          >
-                            {log.status}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan="5"
-                          style={{
-                            textAlign: "center",
-                            color: "#64748b",
-                            padding: "2rem",
-                          }}
-                        >
-                          No access logs available yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+          <DoctorAccessLogsTab 
+            logs={logs}
+            loading={loading.logs}
+            fetchAccessLogs={fetchAccessLogs}
+          />
+        )}
+
+        {/* ------------------ Permissions TAB ------------------ */}
+        {activeTab === "permissions" && (
+            <DoctorPermissionsTab user={user} />
+        )}
+
+        {/* ------------------ Alerts TAB ------------------ */}
+        {activeTab === "alerts" && (
+            <DoctorAlertsTab />
         )}
 
         {/* ============== PDF PREVIEW MODAL ============== */}
@@ -1131,6 +822,7 @@ const DoctorDashboard = ({ user, onLogout }) => {
             setShowPatientForm(false);
           }}
         />
+        </div> {/* Close ehr-content-wrapper */}
       </main>
     </div>
   );

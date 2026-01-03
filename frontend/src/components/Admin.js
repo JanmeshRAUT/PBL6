@@ -44,7 +44,7 @@ const fetchUsers = async (token) => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/assign_role",
+        `${API_URL}/assign_role`,
         { name, email, role },
         { headers: { Authorization: `Bearer ${token}` } }
       );

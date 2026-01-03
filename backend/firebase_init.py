@@ -21,5 +21,14 @@ else:
 	
 	cred = credentials.Certificate(firebase_config_path)
 
-firebase_admin.initialize_app(cred)
-db = firestore.client()
+
+try:
+	firebase_admin.initialize_app(cred)
+	db = firestore.client()
+	firebase_admin_initialized = True
+	print("✅ Firebase initialized successfully!")
+except Exception as e:
+	print(f"❌ Firebase initialization error: {e}")
+	db = None
+	firebase_admin_initialized = False
+

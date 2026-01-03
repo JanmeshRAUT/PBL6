@@ -1,223 +1,184 @@
-:root {
-  --primary: #1e3a8a;
-  --accent: #2563eb;
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --bg-light: #f9fafb;
-  --border: #e2e8f0;
-  --text: #1e293b;
-  --text-muted: #64748b;
-}
+/* ==========================================================================
+   ANALYTICS CHARTS - PROFESSIONAL ENTERPRISE THEME
+   ========================================================================== */
 
 .analytics-charts-container {
   width: 100%;
-  animation: fadeIn 0.4s ease;
+  animation: fadeIn 0.5s ease-in-out;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* ============== CHARTS ROW ============== */
-.charts-row {
+/* --- KPI GRID --- */
+.kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.charts-row.full-width {
-  grid-template-columns: 1fr;
-}
-
-/* ============== CHART CARD ============== */
-.chart-card {
+.kpi-card {
   background: white;
-  border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 1.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.chart-card:hover {
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+.kpi-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
 }
 
-.chart-card h3 {
-  margin: 0 0 1.5rem 0;
-  font-size: 1.1rem;
-  color: var(--primary);
-  font-weight: 600;
+.kpi-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
 }
 
-.chart-card.insights {
+.bg-blue-soft { background: #e0f2fe; color: #0284c7; }
+.bg-green-soft { background: #dcfce7; color: #166534; }
+.bg-red-soft { background: #fee2e2; color: #dc2626; }
+.bg-yellow-soft { background: #fef3c7; color: #d97706; }
+
+.kpi-info {
   display: flex;
   flex-direction: column;
 }
 
-/* ============== INSIGHT ITEMS ============== */
-.insight-item {
+.kpi-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.kpi-value {
+  font-size: 1.6rem; /* Big Premium Numbers */
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1;
+}
+
+.kpi-sub {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  color: #94a3b8;
+}
+
+.kpi-sub.bad { color: #ef4444; font-weight: 500; }
+
+/* --- CHARTS GRID --- */
+.charts-main-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* 2/3 and 1/3 split */
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.charts-row {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card.full { width: 100%; }
+
+.chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 1rem;
+}
+
+.chart-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.chart-filter {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+  color: #475569;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Custom Tooltip */
+.custom-chart-tooltip {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  border-radius: 8px;
+  min-width: 150px;
+}
+
+.tooltip-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 0.25rem;
+}
+
+.analytics-loading {
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #64748b;
+  font-weight: 500;
   gap: 1rem;
 }
 
-.insight-item:last-child {
-  border-bottom: none;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top-color: #0ea5e9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-.insight-label {
-  font-weight: 600;
-  color: var(--text);
-  font-size: 0.9rem;
-  flex: 1;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.insight-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--accent);
-  text-align: right;
-  white-space: nowrap;
-}
-
-/* ============== RECHARTS CUSTOMIZATION ============== */
-.recharts-wrapper {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-}
-
-.recharts-surface {
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.05));
-}
-
-/* ============== LEGEND ============== */
-.recharts-legend-wrapper {
-  margin-top: 1rem;
-}
-
-.recharts-legend-item {
-  color: var(--text-muted) !important;
-  font-size: 0.875rem !important;
-}
-
-.recharts-legend-item-text {
-  color: var(--text) !important;
-}
-
-/* ============== TOOLTIP ============== */
-.recharts-tooltip-wrapper {
-  outline: none !important;
-}
-
-.recharts-default-tooltip {
-  background: white !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 6px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-}
-
-.recharts-tooltip-label {
-  color: var(--text) !important;
-  font-weight: 600 !important;
-}
-
-.recharts-tooltip-item {
-  color: var(--text-muted) !important;
-}
-
-/* ============== LABELS ============== */
-.recharts-cartesian-axis-tick {
-  font-size: 0.8rem;
-}
-
-.recharts-cartesian-axis-tick text {
-  fill: var(--text-muted);
-}
-
-.recharts-text {
-  fill: var(--text);
-}
-
-/* ============== RESPONSIVE ============== */
-@media (max-width: 1200px) {
-  .charts-row {
+/* Responsive */
+@media (max-width: 1024px) {
+  .charts-main-grid {
     grid-template-columns: 1fr;
   }
-}
-
-@media (max-width: 768px) {
-  .charts-row {
-    gap: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .chart-card {
-    padding: 1.25rem;
-  }
-
-  .chart-card h3 {
-    font-size: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .insight-item {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 0.75rem 0;
-  }
-
-  .insight-value {
-    text-align: left;
-    width: 100%;
-  }
-
-  /* Ensure charts are responsive */
-  .recharts-wrapper {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  .recharts-surface {
-    min-width: 100%;
-  }
-}
-
-@media (max-width: 500px) {
-  .charts-row {
-    gap: 1rem;
-  }
-
-  .chart-card {
-    padding: 1rem;
-  }
-
-  .insight-item {
-    padding: 0.5rem 0;
-  }
-}
-
-/* ============== LOADING STATE ============== */
-.chart-loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 300px;
-  color: var(--text-muted);
-}
-
-.chart-loading span {
-  font-size: 1rem;
 }
